@@ -1,18 +1,76 @@
-# eventorder
+<h1 align="center">eventorder</h1>
 
-Put out-of-order events back in event-time order, in plain Go, with no dependencies.
+<p align="center">
+Put out-of-order events back in event-time order, in plain Go.<br>
+Generic, zero dependencies, one small idea: hold events until a watermark says nothing earlier is coming, then release them sorted.
+</p>
 
-Sensors, brokers and mobile clients deliver events late and shuffled. Stream processors such as Flink solve
-this with watermarks, but pulling one in for a service that only needs "give me these readings in the order
-they happened" is a lot. `eventorder` is that one idea as a small generic library: hold events until a
-watermark says nothing earlier is expected, then release them sorted.
+<p align="center">
+<a href="#try-it">Try it</a> |
+<a href="#at-a-glance">At a glance</a> |
+<a href="#how-it-works">How it works</a> |
+<a href="#run-it-locally">Run locally</a> |
+<a href="#status-and-roadmap">Roadmap</a>
+</p>
+
+Last updated: 2026-10-22. Status: runs locally (L1); private repository, not yet published as a module version.
+
+## Contents
+
+- [About](#about)
+- [Try it](#try-it)
+- [At a glance](#at-a-glance)
+- [Features](#features)
+- [Why it exists](#why-it-exists)
+- [How it works](#how-it-works)
+- [Engineering quality](#engineering-quality)
+- [Run it locally](#run-it-locally)
+- [Environment variables](#environment-variables)
+- [Deployment](#deployment)
+- [Status and roadmap](#status-and-roadmap)
+- [Credits](#credits)
+
+## About
+
+Sensors, message brokers and mobile clients deliver events late and shuffled. A service that only needs "give me these
+readings in the order they happened" should not need a stream processor. `eventorder` is that one piece as a library:
+you add events as they arrive, and it hands back the ones that are now safe to process, sorted by event time.
+
+It is for backend engineers who consume MQTT, Kafka, webhook or queue traffic where the arrival order is not the event
+order, and who want bounded memory and a clear answer for events that come too late.
+
+## Try it
+
+Not a hosted service: it is a library. The shortest way to see it work is the sensor example in this repo.
+
+1. Clone the repository and run `go run ./examples/sensors`.
+2. Read `examples/sensors/main.go`: six readings arrive out of order, and the last one is too late.
+3. Change `WithMaxDelay(3*time.Second)` to `WithMaxDelay(10*time.Second)` and run again: the late reading is now in order.
+
+Output of step 1 (run 2026-10-22):
+
+```
+t+1s  21.3C
+t+2s  21.4C
+t+3s  21.5C
+t+4s  21.7C
+t+2s  21.4C (retry)  <- late
+t+9s  22.1C  (flushed)
+{Buffered:0 Released:5 Late:1 Watermark:2026-01-01 12:00:09 +0000 UTC}
+```
+
+## At a glance
+
+- Use `Buffer[T]` for one stream: `Add` returns what is ready, `AdvanceTo` moves the watermark from a timer or heartbeat, `Flush` empties it at shutdown.
+- Use `Keyed[K, T]` for many streams (devices, users, partitions) that must be ordered independently, so one slow key never holds back the others.
+- Use `Reorder(seq, opts...)` to wrap an `iter.Seq` of events and range over it in order.
+- Use `WithMaxDelay` to say how far out of order events may arrive, `WithMaxBuffered` to cap memory, and `WithLatePolicy` to drop late events (counted) or emit them flagged.
 
 ```go
 b := eventorder.New[Reading](
-    eventorder.WithMaxDelay(5*time.Second), // how late an event may be
-    eventorder.WithMaxBuffered(10_000),     // hard memory cap
+    eventorder.WithMaxDelay(5*time.Second),
+    eventorder.WithMaxBuffered(10_000),
 )
-
 for msg := range incoming {
     for _, ev := range b.Add(msg.Time, msg.Reading) {
         process(ev.Value) // arrives sorted by event time
@@ -23,53 +81,158 @@ for _, ev := range b.Flush() { // end of input
 }
 ```
 
-## Install
+Install: `go get github.com/A-RYAN-1/eventorder` (Go 1.23 or newer, for generics and `iter`; works once the repository is public).
 
+## Features
+
+- **Event-time ordering.** Events are released sorted by the time they happened, not the time they arrived. Equal times keep their arrival order.
+- **Bounded delay.** The watermark is the largest event time seen minus the delay you choose; everything at or before it is released.
+- **Late-event policy.** `Drop` discards and counts; `Emit` returns the late event at once with `Late` set, so you decide.
+- **Bounded memory.** `WithMaxBuffered` releases the oldest events early instead of growing, at the price of more late arrivals.
+- **Per-key buffers.** `Keyed` isolates devices or users; `Flush(key)` forgets a finished key.
+- **Quiet sources.** `AdvanceTo` moves the watermark without an event and never moves it backwards.
+- **Iterator form.** `Reorder` turns a Go 1.23 `iter.Seq` into an ordered one, and stops reading when you stop ranging.
+
+## Why it exists
+
+Stream processors such as Flink document watermarks and allowed lateness well, but a Go service that only needs ordering
+has no small, maintained library for it. A search of pkg.go.dev and GitHub on 2026-10-22 found a 4-star resequencer that
+orders by sequence number (last pushed 2022, no license) and unrelated image-watermark packages, but no standalone
+event-time reorder library. The idea comes from a real failure class: code that trusts arrival order when the data carries
+its own clock.
+
+## How it works
+
+```mermaid
+flowchart LR
+    S[Source: broker, sensor, webhook] -->|arrival order| A["Add(time, value)"]
+    A --> L{time <= watermark?}
+    L -- yes --> P{late policy}
+    P -- Drop --> D[count in Stats.Late]
+    P -- Emit --> E[return event flagged Late]
+    L -- no --> H[(min-heap by event time)]
+    H --> W[raise watermark = latest - delay]
+    W --> R[release events <= watermark, sorted]
+    R --> O[caller processes in order]
+    C[WithMaxBuffered cap] -. oldest released early .-> R
+    T[AdvanceTo / Flush] -. move watermark .-> R
 ```
-go get github.com/A-RYAN-1/eventorder
+
+```mermaid
+sequenceDiagram
+    participant Src as Source
+    participant B as Buffer
+    participant App as Caller
+    Src->>B: Add(t=2, "b")
+    B-->>App: nothing yet
+    Src->>B: Add(t=1, "a")
+    B-->>App: nothing yet
+    Src->>B: Add(t=9, "z")
+    Note over B: watermark = 9 - delay
+    B-->>App: a (t=1), b (t=2) in order
+    Src->>B: Add(t=0, "old")
+    B-->>App: dropped, or returned flagged Late
 ```
 
-Needs Go 1.23 or newer (generics and `iter`).
+**Core rules**
 
-## What it gives you
-
-| Piece | Use it for |
+| Rule | Behaviour |
 |---|---|
-| `Buffer[T]` | One stream: `Add`, `AdvanceTo` (push the watermark from a heartbeat), `Flush`, `Stats` |
-| `Keyed[K, T]` | Many streams (devices, users, partitions) reordered independently; one slow key never holds back the others |
-| `Reorder(seq, opts...)` | Wrap an `iter.Seq` of events and range over it in order |
-| `WithMaxDelay` | How far out of order events may arrive; bigger tolerates more and holds events longer |
-| `WithMaxBuffered` | Cap on held events; the oldest are released early instead of growing memory |
-| `WithLatePolicy` | `Drop` (counted in `Stats`) or `Emit` (returned immediately with `Late` set) |
+| Watermark | largest event time seen, minus `MaxDelay`, minus one nanosecond (inclusive bound, as in Flink's bounded out-of-orderness) |
+| Release | every held event with time at or before the watermark, in event-time order |
+| Late | an event whose time is at or before the watermark when it arrives |
+| Ties | equal times are released in arrival order (a sequence number breaks the tie) |
+| Cap | when more than `MaxBuffered` events are held, the oldest are released and the watermark moves up to them |
 
-## How it decides
+**Tech stack**
 
-The watermark is the largest event time seen minus `MaxDelay`. Everything at or before the watermark is released in
-event-time order; an event that arrives at or before the watermark is late. Events with equal times keep their
-arrival order. `AdvanceTo` lets a timer or heartbeat move the watermark when a source goes quiet, and it never moves
-backwards.
+| Part | Choice |
+|---|---|
+| Language | Go 1.23+, generics, `iter` |
+| Ordering | `container/heap` min-heap on (event time, arrival sequence) |
+| Dependencies | none (standard library only) |
+| CI | GitHub Actions: vet, gofmt, race-enabled tests on Go 1.23 and stable |
 
-## Behaviour you should know
+**Design decisions**
 
-- Not safe for concurrent use. Wrap it in a mutex or give each buffer one goroutine.
-- A larger `MaxDelay` is a latency cost: an event waits until a later event moves the watermark past it, or until `AdvanceTo` or `Flush`.
-- `WithMaxBuffered` trades correctness for memory: events released early can make later arrivals late.
-- Late events are never reordered into the past; choose `Emit` to see them and decide yourself.
-- `Keyed` keeps a buffer per key until you `Flush` that key. Flush finished keys.
+1. **Event-time watermark, not a timer.** Release is driven by the data's own clock, so replaying yesterday's file gives the same result as live traffic. Trade-off: a source that goes quiet holds its last events until `AdvanceTo` or `Flush`.
+2. **A heap, not a sorted slice.** Insertion and release are O(log n) per event. Trade-off: more allocations than an append-only slice (2 per `Add`, measured).
+3. **Late events are reported, never silently reordered into the past.** Trade-off: the caller chooses `Drop` or `Emit`; the library will not guess.
+4. **Not goroutine safe.** Locking would hide the real design question (who owns the buffer). Trade-off: callers add a mutex or a single goroutine themselves.
+5. **No idle timeout built in.** A timer inside the library would need a clock and goroutines. Trade-off: the caller calls `AdvanceTo` from their own timer.
 
-## Measured
+<details>
+<summary>Project structure</summary>
 
-`go test -bench` on the author's laptop (Windows, 16 threads, Go 1.27): `Add` with a 1 s delay and a 1024-event cap runs
-at about 415 ns per event with 2 allocations. Tests cover ordering, ties, lateness, the cap, watermark movement, the
-keyed and iterator forms, and a 5,000-event shuffle that must come out sorted with nothing late (95 percent statement
-coverage).
+```
+buffer.go        Buffer, options, Stats, heap
+keyed.go         Keyed: one Buffer per key
+reorder.go       Reorder over iter.Seq
+*_test.go        unit, property-style shuffle test, benchmark, runnable Example
+examples/sensors runnable sample used in this README
+.github/workflows/ci.yml
+```
 
-## Development
+</details>
+
+## Engineering quality
+
+| Check | Result (2026-10-22) |
+|---|---|
+| Unit tests | pass: ordering, ties, lateness (drop and emit), memory cap, watermark never backwards, keyed, iterator |
+| Shuffle test | 5,000 events shuffled inside a 30 s window come out fully sorted with 0 late |
+| Coverage | 95.7 percent of statements |
+| Speed | `Add` about 415 ns and 2 allocations per event (1 s delay, 1,024 cap; Windows laptop, 16 threads, Go 1.27) |
+| Race detector | runs in CI only (needs cgo, not available on the author's laptop); CI has not run yet |
+| Vet and gofmt | clean |
 
 ```
 go vet ./...
-go test -race -count=1 ./...
-go test -bench . -run xxx
+go test -race -count=1 -cover ./...
+go test -run xxx -bench .
 ```
 
-CI runs vet, gofmt and the race-enabled tests on the oldest and newest supported Go.
+## Run it locally
+
+Works in Git Bash on Windows and on Linux. Needs Go 1.23 or newer.
+
+```
+git clone git@github.com:A-RYAN-1/eventorder.git
+cd eventorder
+go test -count=1 ./...
+go run ./examples/sensors
+```
+
+Ready check: `go test` prints `ok github.com/A-RYAN-1/eventorder`, and the example prints six lines and a stats line.
+
+## Environment variables
+
+None. The library reads no environment variables and makes no network calls.
+
+## Deployment
+
+Not deployed yet, and nothing to deploy: it is a library. It will be published as a tagged Go module
+(`v0.1.0`), which `go get` downloads through the Go module proxy and which pkg.go.dev indexes on first request. The
+repository is private until the author makes it public; until then the module cannot be fetched by others.
+Free-tier limits: none apply.
+
+## Status and roadmap
+
+Rung L1 (builds and passes tests locally), checked 2026-10-22.
+
+**Known limitations**
+
+- Not safe for concurrent use.
+- No built-in idle timeout; call `AdvanceTo` yourself.
+- CI has never run; the `-race` result is unproven.
+- Not published: no tag, no pkg.go.dev page.
+
+**Planned**
+
+- [ ] Push, green CI, tag `v0.1.0`
+- [ ] Timer-driven `AdvanceTo` helper and metrics hooks
+- [ ] Benchmarks against a naive sort-then-release baseline, published here
+
+## Credits
+
+Designed and written by Aryan Deshmukh (A-RYAN-1). No co-authors.
