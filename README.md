@@ -183,7 +183,7 @@ examples/sensors runnable sample used in this README
 | Shuffle test | 5,000 events shuffled inside a 30 s window come out fully sorted with 0 late |
 | Coverage | 95.7 percent of statements |
 | Speed | `Add` about 415 ns and 2 allocations per event (1 s delay, 1,024 cap; Windows laptop, 16 threads, Go 1.27) |
-| Race detector | runs in CI only (needs cgo, not available on the author's laptop); CI has not run yet |
+| Race detector and CI | green on GitHub Actions 2026-10-22 (vet, gofmt, `-race` tests on Go 1.23 and stable); the race detector cannot run on the author's laptop (no cgo) |
 | Vet and gofmt | clean |
 
 ```
@@ -224,12 +224,11 @@ Rung L1 (builds and passes tests locally), checked 2026-10-22.
 
 - Not safe for concurrent use.
 - No built-in idle timeout; call `AdvanceTo` yourself.
-- CI has never run; the `-race` result is unproven.
 - Not published: no tag, no pkg.go.dev page.
 
 **Planned**
 
-- [ ] Push, green CI, tag `v0.1.0`
+- [ ] Make the repository public (the author's decision), tag `v0.1.0`
 - [ ] Timer-driven `AdvanceTo` helper and metrics hooks
 - [ ] Benchmarks against a naive sort-then-release baseline, published here
 
