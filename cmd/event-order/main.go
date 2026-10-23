@@ -74,7 +74,7 @@ func openInputs(names []string, stdin io.Reader) (io.Reader, func(), error) {
 	var files []*os.File
 	closeAll := func() {
 		for _, f := range files {
-			f.Close()
+			_ = f.Close()
 		}
 	}
 	rs := make([]io.Reader, 0, len(names))
@@ -103,7 +103,7 @@ func run(in io.Reader, out, errw io.Writer, c config) error {
 	}
 	b := eventorder.New[string](opts...)
 	if c.late == "stderr" {
-		b.OnLate(func(e eventorder.Event[string]) { fmt.Fprintln(errw, e.Value) })
+		b.OnLate(func(e eventorder.Event[string]) { _, _ = fmt.Fprintln(errw, e.Value) })
 	}
 
 	var bad int
@@ -126,7 +126,7 @@ func run(in io.Reader, out, errw io.Writer, c config) error {
 		t, err := lineTime(line, c)
 		if err != nil {
 			bad++
-			fmt.Fprintf(errw, "event-order: line %d skipped: %v\n", n, err)
+			_, _ = fmt.Fprintf(errw, "event-order: line %d skipped: %v\n", n, err)
 			continue
 		}
 		buf = b.AddTo(buf[:0], t, line)
@@ -142,7 +142,7 @@ func run(in io.Reader, out, errw io.Writer, c config) error {
 	}
 	if c.stats {
 		s := b.Stats()
-		fmt.Fprintf(errw, "released %d, late %d, skipped %d, peak held %d\n", s.Released, s.Late, bad, s.Peak)
+		_, _ = fmt.Fprintf(errw, "released %d, late %d, skipped %d, peak held %d\n", s.Released, s.Late, bad, s.Peak)
 	}
 	return nil
 }
