@@ -1,13 +1,3 @@
-// Package eventorder puts out-of-order events back in event-time order.
-//
-// Events from sensors, message brokers and mobile clients arrive late and
-// shuffled. A Buffer holds them until a watermark says no earlier event is
-// expected, then releases them sorted by event time. The watermark is the
-// largest event time seen so far minus a bounded delay, the same model stream
-// processors use, without a stream processor.
-//
-// A Buffer is not safe for concurrent use; serialise calls with a mutex or a
-// single goroutine.
 package eventorder
 
 import "time"

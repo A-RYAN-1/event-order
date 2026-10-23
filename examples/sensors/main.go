@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/A-RYAN-1/event-order"
+	eventorder "github.com/A-RYAN-1/event-order"
 )
 
 func main() {
