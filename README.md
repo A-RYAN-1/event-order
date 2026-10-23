@@ -1,4 +1,4 @@
-<h1 align="center">eventorder</h1>
+<h1 align="center">event-order</h1>
 
 <p align="center">
 Put out-of-order events back in event-time order, in plain Go.<br>
@@ -33,7 +33,7 @@ Last updated: 2026-10-22. Status: runs locally (L1); private repository, not yet
 ## About
 
 Sensors, message brokers and mobile clients deliver events late and shuffled. A service that only needs "give me these
-readings in the order they happened" should not need a stream processor. `eventorder` is that one piece as a library:
+readings in the order they happened" should not need a stream processor. `event-order` is that one piece as a library:
 you add events as they arrive, and it hands back the ones that are now safe to process, sorted by event time.
 
 It is for backend engineers who consume MQTT, Kafka, webhook or queue traffic where the arrival order is not the event
@@ -81,7 +81,7 @@ for _, ev := range b.Flush() { // end of input
 }
 ```
 
-Install: `go get github.com/A-RYAN-1/eventorder` (Go 1.23 or newer, for generics and `iter`; works once the repository is public).
+Install: `go get github.com/A-RYAN-1/event-order` (Go 1.23 or newer, for generics and `iter`; works once the repository is public). The import path ends in `event-order`; the package name is `eventorder` (Go package names cannot contain a dash).
 
 ## Features
 
@@ -197,13 +197,13 @@ go test -run xxx -bench .
 Works in Git Bash on Windows and on Linux. Needs Go 1.23 or newer.
 
 ```
-git clone git@github.com:A-RYAN-1/eventorder.git
-cd eventorder
+git clone git@github.com:A-RYAN-1/event-order.git
+cd event-order
 go test -count=1 ./...
 go run ./examples/sensors
 ```
 
-Ready check: `go test` prints `ok github.com/A-RYAN-1/eventorder`, and the example prints six lines and a stats line.
+Ready check: `go test` prints `ok github.com/A-RYAN-1/event-order`, and the example prints six lines and a stats line.
 
 ## Environment variables
 

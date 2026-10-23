@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/A-RYAN-1/eventorder"
+	"github.com/A-RYAN-1/event-order"
 )
 
 func ExampleBuffer() {
