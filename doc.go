@@ -15,7 +15,8 @@
 //   - Pipe wraps a channel and, with WithIdleTimeout, releases the tail when the
 //     source goes quiet.
 //   - Safe and SafeKeyed add a mutex for several goroutines.
-//   - Reorder wraps an iter.Seq of events.
+//   - Reorder wraps an iter.Seq of events, and Merge joins several ordered
+//     sequences into one.
 //
 // Buffer and Keyed are not safe for concurrent use; serialise calls with a
 // mutex or a single goroutine, or use Safe, SafeKeyed or Pipe.
@@ -29,6 +30,11 @@
 // sooner and turns more events into late ones. WithMaxBuffered bounds memory
 // when the delay is generous: the oldest events are released early and the
 // watermark moves up to them.
+//
+// When the disorder changes over time, WithDelayStrategy with PercentileDelay
+// follows it: the delay becomes a percentile of the lags seen in the last
+// window events, and WithMaxDelay stays as the floor. A rare very late event
+// is then late instead of stretching the delay for everyone.
 //
 // # Late events
 //

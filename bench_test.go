@@ -1,6 +1,7 @@
 package eventorder
 
 import (
+	"iter"
 	"math/rand"
 	"sort"
 	"testing"
@@ -85,4 +86,43 @@ func itoa(n int) string {
 		d = append([]byte{byte('0' + n%10)}, d...)
 	}
 	return string(d)
+}
+
+func BenchmarkBufferAddPercentileDelay(b *testing.B) {
+	for _, jitter := range []int{16, 256} {
+		ts := disordered(1<<16, jitter)
+		b.Run("jitter="+itoa(jitter), func(b *testing.B) {
+			b.ReportAllocs()
+			buf := New[int](WithDelayStrategy(PercentileDelay(0.99, 1024)))
+			for i := 0; i < b.N; i++ {
+				buf.Add(ts[i&(1<<16-1)].Add(time.Duration(i>>16)*time.Hour), i)
+			}
+		})
+	}
+}
+
+func BenchmarkMerge(b *testing.B) {
+	for _, k := range []int{2, 16} {
+		b.Run("sources="+itoa(k), func(b *testing.B) {
+			b.ReportAllocs()
+			per := b.N/k + 1
+			srcs := make([]iter.Seq[Event[int]], k)
+			for s := range srcs {
+				srcs[s] = func(yield func(Event[int]) bool) {
+					for i := 0; i < per; i++ {
+						if !yield(Event[int]{Time: t0.Add(time.Duration(i*k+s) * time.Millisecond), Value: i}) {
+							return
+						}
+					}
+				}
+			}
+			b.ResetTimer()
+			n := 0
+			for range Merge(srcs...) {
+				if n++; n == b.N {
+					break
+				}
+			}
+		})
+	}
 }

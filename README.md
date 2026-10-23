@@ -99,6 +99,8 @@ Install: `go get github.com/A-RYAN-1/event-order` (Go 1.23 or newer, for generic
 - **A command line tool.** `event-order` sorts JSON-lines or delimited text by timestamp in a stream.
 - **No allocations on the hot path.** A typed heap and `AddTo(dst, ...)` reuse your slice.
 - **Late-event hook.** `OnLate` sees every late event, dropped or not, for a dead-letter queue or a metric.
+- **Adaptive delay.** `WithDelayStrategy(PercentileDelay(0.99, 1024))` sets the delay from the disorder actually seen (the 99th percentile of recent lags) instead of a guess; `WithMaxDelay` stays as the floor. Write your own `DelayStrategy` for other rules.
+- **Merging sources.** `Merge` joins several already-ordered `iter.Seq`s (partitions, devices) into one ordered sequence, one event in memory per source.
 - **Quiet sources.** `AdvanceTo` moves the watermark without an event and never moves it backwards.
 - **Iterator form.** `Reorder` turns a Go 1.23 `iter.Seq` into an ordered one, and stops reading when you stop ranging.
 
@@ -121,7 +123,7 @@ Against the loop most services write first (append, sort the whole slice, releas
 | Disorder window 16 | 117 ns | 250 ns | 0 vs 3 |
 | Disorder window 256 | 131 ns | 1303 ns | 0 vs 3 |
 
-The sort-every-time cost grows with the window; the heap's grows with its logarithm, so the gap widens as disorder grows. `AddTo` appends into a slice you reuse, so the steady state allocates nothing. Reproduce with `go test -run xxx -bench . -benchmem`; the code is in `bench_test.go`. A fuzz test (`go test -fuzz FuzzBuffer`) checks that output is sorted and no event is lost or invented.
+The sort-every-time cost grows with the window; the heap's grows with its logarithm, so the gap widens as disorder grows. `AddTo` appends into a slice you reuse, so the steady state allocates nothing. Reproduce with `go test -run xxx -bench . -benchmem`; the code is in `bench_test.go`. `PercentileDelay` adds a sorted-window update per Add (measured 2026-10-23, same machine, 1,024-event window, 0 allocations: 425 ns at disorder 16 and 628 ns at disorder 256, against 102 and 125 ns for a fixed delay); `Merge` costs about 110 ns per event for 2 sources and 185 ns for 16. A fuzz test (`go test -fuzz FuzzBuffer`) checks that output is sorted and no event is lost or invented.
 
 ## Why it exists
 

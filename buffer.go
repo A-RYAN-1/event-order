@@ -31,6 +31,7 @@ type options struct {
 	maxBuf   int
 	policy   LatePolicy
 	idle     time.Duration
+	strategy func() DelayStrategy
 }
 
 // WithMaxDelay sets how far out of order events may arrive. Larger values
@@ -136,6 +137,7 @@ type Buffer[T any] struct {
 	late     uint64
 	peak     int
 	onLate   func(Event[T])
+	strat    DelayStrategy
 }
 
 // New returns an empty Buffer.
@@ -146,6 +148,9 @@ func New[T any](opts ...Option) *Buffer[T] {
 	}
 	if b.opt.maxDelay < 0 {
 		b.opt.maxDelay = 0
+	}
+	if b.opt.strategy != nil {
+		b.strat = b.opt.strategy()
 	}
 	return b
 }
@@ -164,6 +169,15 @@ func (b *Buffer[T]) Add(t time.Time, v T) []Event[T] {
 // Once the slice has grown to the largest burst, Add costs no allocation.
 func (b *Buffer[T]) AddTo(dst []Event[T], t time.Time, v T) []Event[T] {
 	out := dst
+	delay := b.opt.maxDelay
+	if b.strat != nil {
+		var lag time.Duration
+		if t.Before(b.maxSeen) {
+			lag = b.maxSeen.Sub(t)
+		}
+		b.strat.Observe(lag)
+		delay = max(delay, b.strat.Delay())
+	}
 	if b.hasWM && !t.After(b.wm) {
 		b.late++
 		ev := Event[T]{Time: t, Value: v, Late: true}
@@ -185,7 +199,7 @@ func (b *Buffer[T]) AddTo(dst []Event[T], t time.Time, v T) []Event[T] {
 	}
 	// One nanosecond below the bound makes "latest minus delay" inclusive of
 	// events at exactly that time, as in Flink's bounded-out-of-orderness.
-	b.raise(b.maxSeen.Add(-b.opt.maxDelay).Add(-time.Nanosecond))
+	b.raise(b.maxSeen.Add(-delay).Add(-time.Nanosecond))
 	out = b.drain(out)
 	for b.opt.maxBuf > 0 && len(b.h) > b.opt.maxBuf {
 		it := b.h.pop()

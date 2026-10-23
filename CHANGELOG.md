@@ -6,6 +6,8 @@ All notable changes are listed here, newest first. The format follows [Keep a Ch
 
 ### Added
 
+- `WithDelayStrategy`, the `DelayStrategy` interface and `PercentileDelay`: the delay follows the observed disorder (a percentile of recent lags), with `WithMaxDelay` as the floor.
+- `Merge`: k-way merge of several already-ordered `iter.Seq` sources.
 - `Pipe`: channel in, channel out stage with context cancellation and `WithIdleTimeout`.
 - `Safe` and `SafeKeyed`: goroutine-safe wrappers.
 - `Buffer.AddTo` (append into a reused slice), `OnLate`, `Len`, `Watermark` and `Stats.Peak`.

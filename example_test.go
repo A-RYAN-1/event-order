@@ -3,6 +3,7 @@ package eventorder_test
 import (
 	"context"
 	"fmt"
+	"slices"
 	"time"
 
 	eventorder "github.com/A-RYAN-1/event-order"
@@ -75,4 +76,35 @@ func ExampleBuffer_OnLate() {
 	b.Add(t0, "stale")
 	// Output:
 	// dead letter: stale
+}
+
+func ExamplePercentileDelay() {
+	b := eventorder.New[string](eventorder.WithDelayStrategy(eventorder.PercentileDelay(0.99, 1000)))
+	base := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	for i, s := range []string{"a", "b", "c"} {
+		for _, e := range b.Add(base.Add(time.Duration(i)*time.Second), s) {
+			fmt.Println(e.Value)
+		}
+	}
+	// With no disorder seen the delay is zero, so each event is held only
+	// until the next newer one arrives.
+	// Output:
+	// a
+	// b
+}
+
+func ExampleMerge() {
+	at := func(s int, v string) eventorder.Event[string] {
+		return eventorder.Event[string]{Time: time.Unix(int64(s), 0), Value: v}
+	}
+	north := slices.Values([]eventorder.Event[string]{at(1, "n1"), at(4, "n4")})
+	south := slices.Values([]eventorder.Event[string]{at(2, "s2"), at(3, "s3")})
+	for e := range eventorder.Merge(north, south) {
+		fmt.Println(e.Value)
+	}
+	// Output:
+	// n1
+	// s2
+	// s3
+	// n4
 }
