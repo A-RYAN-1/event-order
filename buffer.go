@@ -40,6 +40,7 @@ type options struct {
 	maxDelay time.Duration
 	maxBuf   int
 	policy   LatePolicy
+	idle     time.Duration
 }
 
 // WithMaxDelay sets how far out of order events may arrive. Larger values
@@ -59,6 +60,14 @@ func WithMaxBuffered(n int) Option {
 // WithLatePolicy chooses what happens to late events. The default is Drop.
 func WithLatePolicy(p LatePolicy) Option {
 	return func(o *options) { o.policy = p }
+}
+
+// WithIdleTimeout makes Pipe release everything it holds when no event has
+// arrived for d of wall-clock time, so a source that goes quiet does not strand
+// its last events. Zero, the default, waits for input or Flush. Buffer and
+// Keyed ignore it: they have no clock, drive them with AdvanceTo.
+func WithIdleTimeout(d time.Duration) Option {
+	return func(o *options) { o.idle = d }
 }
 
 // Stats is a snapshot of a Buffer's counters.

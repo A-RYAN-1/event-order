@@ -8,6 +8,7 @@ import "time"
 type Keyed[K comparable, T any] struct {
 	opts []Option
 	bufs map[K]*Buffer[T]
+	late func(K, Event[T])
 }
 
 // NewKeyed returns an empty Keyed; every key's Buffer is made with opts.
@@ -20,6 +21,9 @@ func (k *Keyed[K, T]) Add(key K, t time.Time, v T) []Event[T] {
 	b, ok := k.bufs[key]
 	if !ok {
 		b = New[T](k.opts...)
+		if k.late != nil {
+			b.OnLate(func(e Event[T]) { k.late(key, e) })
+		}
 		k.bufs[key] = b
 	}
 	return b.Add(t, v)
@@ -32,6 +36,35 @@ func (k *Keyed[K, T]) AdvanceTo(key K, t time.Time) []Event[T] {
 		return b.AdvanceTo(t)
 	}
 	return nil
+}
+
+// OnLate sets a function called with the key for every late event, see
+// Buffer.OnLate. It applies to existing and future keys. A nil fn clears it.
+func (k *Keyed[K, T]) OnLate(fn func(key K, e Event[T])) {
+	k.late = fn
+	for key, b := range k.bufs {
+		key := key
+		if fn == nil {
+			b.OnLate(nil)
+			continue
+		}
+		b.OnLate(func(e Event[T]) { fn(key, e) })
+	}
+}
+
+// AdvanceAll moves every key watermark up to t, see Buffer.AdvanceTo, calling
+// fn once per key that released events. Keys left empty are forgotten, so a
+// periodic call with the current time keeps the number of tracked keys
+// bounded by the keys that were active recently. Key order is not defined.
+func (k *Keyed[K, T]) AdvanceAll(t time.Time, fn func(key K, events []Event[T])) {
+	for key, b := range k.bufs {
+		if evs := b.AdvanceTo(t); len(evs) > 0 && fn != nil {
+			fn(key, evs)
+		}
+		if b.Len() == 0 {
+			delete(k.bufs, key)
+		}
+	}
 }
 
 // Flush releases and forgets one key. Call it when a key is finished, or the
