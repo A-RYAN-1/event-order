@@ -22,3 +22,25 @@ jobs:
       - run: go test -race -count=1 -cover ./...
       - run: go test -run xxx -fuzz FuzzBuffer -fuzztime 15s
       - run: go test -run xxx -bench . -benchtime 1000x
+  portable:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - run: go build ./...
+      - run: go test -count=1 ./...
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - uses: golangci/golangci-lint-action@v8
+        with:
+          version: v2.1

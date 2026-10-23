@@ -181,7 +181,7 @@ sequenceDiagram
 | Language | Go 1.23+, generics, `iter` |
 | Ordering | `container/heap` min-heap on (event time, arrival sequence) |
 | Dependencies | none (standard library only) |
-| CI | GitHub Actions: vet, gofmt, race-enabled tests on Go 1.23 and stable |
+| CI | GitHub Actions: vet, gofmt, golangci-lint, race-enabled tests on Go 1.23 and stable, build and tests on Windows and macOS |
 
 **Design decisions**
 
@@ -195,6 +195,7 @@ sequenceDiagram
 <summary>Project structure</summary>
 
 ```
+doc.go           package guide shown on pkg.go.dev
 buffer.go        Buffer, options, Stats, heap
 keyed.go         Keyed: one Buffer per key
 reorder.go       Reorder over iter.Seq

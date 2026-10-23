@@ -12,6 +12,9 @@ All notable changes are listed here, newest first. The format follows [Keep a Ch
 - `Keyed.OnLate` and `Keyed.AdvanceAll` (forgets keys that went quiet).
 - `event-order` command: streaming sort of JSON-lines or delimited text by timestamp.
 - Fuzz test for the ordering and no-loss properties; benchmarks against a sort-on-every-add baseline.
+- `doc.go`: package guide covering which type to choose, how to choose a delay, late events and how this compares with a stream processor.
+- CI runs the build and tests on Windows and macOS, and `golangci-lint` (errcheck, govet, ineffassign, staticcheck, unused, misspell, bodyclose, unconvert).
+- More command tests (numeric and quoted times, bad lines, column range, `-max-buffered`, multiple input files).
 
 ### Changed
 

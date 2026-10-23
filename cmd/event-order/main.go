@@ -48,29 +48,46 @@ func main() {
 	}
 	flag.Parse()
 
-	var in io.Reader = os.Stdin
-	if flag.NArg() > 0 {
-		var rs []io.Reader
-		for _, name := range flag.Args() {
-			f, err := os.Open(name)
-			if err != nil {
-				fmt.Fprintln(os.Stderr, "event-order:", err)
-				os.Exit(2)
-			}
-			defer f.Close()
-			rs = append(rs, f)
-		}
-		in = io.MultiReader(rs...)
-	}
-	out := bufio.NewWriter(os.Stdout)
-	err := run(in, out, os.Stderr, c)
-	if ferr := out.Flush(); err == nil {
-		err = ferr
-	}
+	in, closeInputs, err := openInputs(flag.Args(), os.Stdin)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "event-order:", err)
 		os.Exit(2)
 	}
+	out := bufio.NewWriter(os.Stdout)
+	err = run(in, out, os.Stderr, c)
+	if ferr := out.Flush(); err == nil {
+		err = ferr
+	}
+	closeInputs()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "event-order:", err)
+		os.Exit(2)
+	}
+}
+
+// openInputs joins the named files into one reader, or returns stdin when no
+// names are given. The returned function closes every file that was opened.
+func openInputs(names []string, stdin io.Reader) (io.Reader, func(), error) {
+	if len(names) == 0 {
+		return stdin, func() {}, nil
+	}
+	var files []*os.File
+	closeAll := func() {
+		for _, f := range files {
+			f.Close()
+		}
+	}
+	rs := make([]io.Reader, 0, len(names))
+	for _, name := range names {
+		f, err := os.Open(name)
+		if err != nil {
+			closeAll()
+			return nil, func() {}, err
+		}
+		files = append(files, f)
+		rs = append(rs, f)
+	}
+	return io.MultiReader(rs...), closeAll, nil
 }
 
 func run(in io.Reader, out, errw io.Writer, c config) error {

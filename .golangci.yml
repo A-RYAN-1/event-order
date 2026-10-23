@@ -1,0 +1,17 @@
+version: "2"
+run:
+  go: "1.23"
+linters:
+  default: none
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - misspell
+    - bodyclose
+    - unconvert
+formatters:
+  enable:
+    - gofmt
