@@ -97,7 +97,7 @@ Install: `go get github.com/A-RYAN-1/event-order` (Go 1.23 or newer, for generic
 
 ## Benchmarks
 
-Against the loop most services write first (append, sort the whole slice, release the prefix), same input, `go test -bench .` on an AMD/Windows laptop, Go 1.27, 16 threads, shuffled in a window of 16 and of 256 events:
+Against the loop most services write first (append, sort the whole slice, release the prefix), same input, `go test -bench .` on a Windows laptop, Go 1.27, 16 threads, shuffled in a window of 16 and of 256 events:
 
 | Case | event-order | sort every Add | Allocations per Add |
 |---|---|---|---|
