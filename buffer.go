@@ -137,7 +137,7 @@ type Buffer[T any] struct {
 	late     uint64
 	peak     int
 	onLate   func(Event[T])
-	strat    DelayStrategy
+	delayer  DelayStrategy
 }
 
 // New returns an empty Buffer.
@@ -150,7 +150,7 @@ func New[T any](opts ...Option) *Buffer[T] {
 		b.opt.maxDelay = 0
 	}
 	if b.opt.strategy != nil {
-		b.strat = b.opt.strategy()
+		b.delayer = b.opt.strategy()
 	}
 	return b
 }
@@ -170,13 +170,13 @@ func (b *Buffer[T]) Add(t time.Time, v T) []Event[T] {
 func (b *Buffer[T]) AddTo(dst []Event[T], t time.Time, v T) []Event[T] {
 	out := dst
 	delay := b.opt.maxDelay
-	if b.strat != nil {
+	if b.delayer != nil {
 		var lag time.Duration
 		if t.Before(b.maxSeen) {
 			lag = b.maxSeen.Sub(t)
 		}
-		b.strat.Observe(lag)
-		delay = max(delay, b.strat.Delay())
+		b.delayer.Observe(lag)
+		delay = max(delay, b.delayer.Delay())
 	}
 	if b.hasWM && !t.After(b.wm) {
 		b.late++

@@ -83,7 +83,7 @@ func TestStrategyCountsLateEventsToo(t *testing.T) {
 	b := New[int](WithDelayStrategy(PercentileDelay(1, 4)))
 	b.Add(at(100), 1)
 	b.Add(at(0), 2) // 100s late and dropped; the strategy still sees the lag
-	if d := b.strat.Delay(); d != 100*time.Second {
+	if d := b.delayer.Delay(); d != 100*time.Second {
 		t.Fatalf("delay %v, want 100s", d)
 	}
 	if b.Stats().Late != 1 {
@@ -96,7 +96,7 @@ func TestKeyedStrategiesAreIndependent(t *testing.T) {
 	k.Add("a", at(100), 1)
 	k.Add("a", at(0), 2) // teaches key a a 100s delay
 	k.Add("b", at(100), 1)
-	if k.bufs["b"].strat.Delay() != 0 {
+	if k.bufs["b"].delayer.Delay() != 0 {
 		t.Fatal("key b inherited key a's lag")
 	}
 }
