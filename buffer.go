@@ -10,10 +10,7 @@
 // single goroutine.
 package eventorder
 
-import (
-	"container/heap"
-	"time"
-)
+import "time"
 
 // Event is a value with the time it happened (not the time it arrived).
 type Event[T any] struct {
@@ -69,6 +66,7 @@ type Stats struct {
 	Buffered  int       // events currently held
 	Released  uint64    // events released in order
 	Late      uint64    // events that arrived late (dropped or emitted)
+	Peak      int       // most events held at once, to size WithMaxBuffered
 	Watermark time.Time // zero until the first event or AdvanceTo
 }
 
@@ -77,24 +75,54 @@ type item[T any] struct {
 	seq uint64 // arrival order, breaks ties so equal times keep their order
 }
 
+// minHeap is a typed binary heap ordered by event time, then arrival. It is
+// written out instead of using container/heap so pushes and pops do not box
+// every item in an interface value.
 type minHeap[T any] []item[T]
 
-func (h minHeap[T]) Len() int { return len(h) }
-func (h minHeap[T]) Less(i, j int) bool {
+func (h minHeap[T]) less(i, j int) bool {
 	if h[i].ev.Time.Equal(h[j].ev.Time) {
 		return h[i].seq < h[j].seq
 	}
 	return h[i].ev.Time.Before(h[j].ev.Time)
 }
-func (h minHeap[T]) Swap(i, j int) { h[i], h[j] = h[j], h[i] }
-func (h *minHeap[T]) Push(x any)   { *h = append(*h, x.(item[T])) }
-func (h *minHeap[T]) Pop() any {
-	old := *h
-	n := len(old)
-	it := old[n-1]
-	old[n-1] = item[T]{} // let the value be collected
-	*h = old[:n-1]
-	return it
+
+func (h *minHeap[T]) push(it item[T]) {
+	*h = append(*h, it)
+	s := *h
+	for i := len(s) - 1; i > 0; {
+		p := (i - 1) / 2
+		if !s.less(i, p) {
+			break
+		}
+		s[i], s[p] = s[p], s[i]
+		i = p
+	}
+}
+
+func (h *minHeap[T]) pop() item[T] {
+	s := *h
+	top := s[0]
+	n := len(s) - 1
+	s[0] = s[n]
+	s[n] = item[T]{} // let the value be collected
+	s = s[:n]
+	for i := 0; ; {
+		l, small := 2*i+1, i
+		if l < n && s.less(l, small) {
+			small = l
+		}
+		if r := l + 1; r < n && s.less(r, small) {
+			small = r
+		}
+		if small == i {
+			break
+		}
+		s[i], s[small] = s[small], s[i]
+		i = small
+	}
+	*h = s
+	return top
 }
 
 // Buffer reorders events by event time.
@@ -107,6 +135,8 @@ type Buffer[T any] struct {
 	hasWM    bool
 	released uint64
 	late     uint64
+	peak     int
+	onLate   func(Event[T])
 }
 
 // New returns an empty Buffer.
@@ -125,16 +155,32 @@ func New[T any](opts ...Option) *Buffer[T] {
 // in event-time order. The slice is empty when nothing can be released yet.
 // Under the Emit late policy a late event is returned first with Late set.
 func (b *Buffer[T]) Add(t time.Time, v T) []Event[T] {
-	var out []Event[T]
+	return b.AddTo(nil, t, v)
+}
+
+// AddTo is Add appending to dst, for a hot path that reuses one slice:
+//
+//	out = b.AddTo(out[:0], t, v)
+//
+// Once the slice has grown to the largest burst, Add costs no allocation.
+func (b *Buffer[T]) AddTo(dst []Event[T], t time.Time, v T) []Event[T] {
+	out := dst
 	if b.hasWM && !t.After(b.wm) {
 		b.late++
+		ev := Event[T]{Time: t, Value: v, Late: true}
+		if b.onLate != nil {
+			b.onLate(ev)
+		}
 		if b.opt.policy == Emit {
-			out = append(out, Event[T]{Time: t, Value: v, Late: true})
+			out = append(out, ev)
 		}
 		return out
 	}
 	b.seq++
-	heap.Push(&b.h, item[T]{ev: Event[T]{Time: t, Value: v}, seq: b.seq})
+	b.h.push(item[T]{ev: Event[T]{Time: t, Value: v}, seq: b.seq})
+	if len(b.h) > b.peak {
+		b.peak = len(b.h)
+	}
 	if t.After(b.maxSeen) {
 		b.maxSeen = t
 	}
@@ -142,8 +188,8 @@ func (b *Buffer[T]) Add(t time.Time, v T) []Event[T] {
 	// events at exactly that time, as in Flink's bounded-out-of-orderness.
 	b.raise(b.maxSeen.Add(-b.opt.maxDelay).Add(-time.Nanosecond))
 	out = b.drain(out)
-	for b.opt.maxBuf > 0 && b.h.Len() > b.opt.maxBuf {
-		it := heap.Pop(&b.h).(item[T])
+	for b.opt.maxBuf > 0 && len(b.h) > b.opt.maxBuf {
+		it := b.h.pop()
 		b.raise(it.ev.Time)
 		b.released++
 		out = append(out, it.ev)
@@ -164,8 +210,8 @@ func (b *Buffer[T]) AdvanceTo(t time.Time) []Event[T] {
 // input. The watermark moves to the last released event.
 func (b *Buffer[T]) Flush() []Event[T] {
 	var out []Event[T]
-	for b.h.Len() > 0 {
-		it := heap.Pop(&b.h).(item[T])
+	for len(b.h) > 0 {
+		it := b.h.pop()
 		b.raise(it.ev.Time)
 		b.released++
 		out = append(out, it.ev)
@@ -173,9 +219,21 @@ func (b *Buffer[T]) Flush() []Event[T] {
 	return out
 }
 
+// OnLate sets a function called for every late event, whatever the policy,
+// so dropped events can go to a dead-letter queue or a metric instead of
+// vanishing. It runs inside Add; keep it fast. A nil fn clears it.
+func (b *Buffer[T]) OnLate(fn func(Event[T])) { b.onLate = fn }
+
+// Len is the number of events currently held.
+func (b *Buffer[T]) Len() int { return len(b.h) }
+
+// Watermark is the time up to which events have been released; the zero time
+// until the first event or AdvanceTo.
+func (b *Buffer[T]) Watermark() time.Time { return b.wm }
+
 // Stats returns the current counters.
 func (b *Buffer[T]) Stats() Stats {
-	return Stats{Buffered: b.h.Len(), Released: b.released, Late: b.late, Watermark: b.wm}
+	return Stats{Buffered: len(b.h), Released: b.released, Late: b.late, Peak: b.peak, Watermark: b.wm}
 }
 
 func (b *Buffer[T]) raise(t time.Time) {
@@ -185,8 +243,8 @@ func (b *Buffer[T]) raise(t time.Time) {
 }
 
 func (b *Buffer[T]) drain(out []Event[T]) []Event[T] {
-	for b.h.Len() > 0 && !b.h[0].ev.Time.After(b.wm) {
-		it := heap.Pop(&b.h).(item[T])
+	for len(b.h) > 0 && !b.h[0].ev.Time.After(b.wm) {
+		it := b.h.pop()
 		b.released++
 		out = append(out, it.ev)
 	}
