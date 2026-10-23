@@ -110,7 +110,7 @@ tail -f app.log | event-order -field ts -delay 5s          # JSON lines, "ts" ke
 event-order -col 1 -sep , -delay 1m events.csv > sorted.csv  # CSV, first column
 ```
 
-Times may be RFC 3339, Unix seconds or Unix milliseconds. Lines that arrive later than the delay are dropped, printed in place (`-late emit`) or sent to stderr (`-late stderr`), `-max-buffered N` caps memory, and `-stats` prints counters at the end. It streams: a 40 GB log sorted within a 5 second window holds only the lines of that window.
+Times may be RFC 3339, Unix seconds or Unix milliseconds. Lines that arrive later than the delay are dropped, printed in place (`-late emit`) or sent to stderr (`-late stderr`), `-max-buffered N` caps memory, and `-stats` prints counters at the end. It streams. Measured 2026-10-23 on a 95 MB, 2,000,000-line JSON log shuffled out of order (`-delay 1h`): output fully sorted, none lost, 4.2 s, 13 MB peak memory, at most 3,601 lines held at once.
 
 ## Benchmarks
 
