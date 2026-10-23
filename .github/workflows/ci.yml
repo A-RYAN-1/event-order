@@ -3,6 +3,8 @@ on:
   push:
     branches: [main]
   pull_request:
+permissions:
+  contents: read
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -16,4 +18,7 @@ jobs:
           go-version: ${{ matrix.go }}
       - run: go vet ./...
       - run: test -z "$(gofmt -l .)"
+      - run: go build ./...
       - run: go test -race -count=1 -cover ./...
+      - run: go test -run xxx -fuzz FuzzBuffer -fuzztime 15s
+      - run: go test -run xxx -bench . -benchtime 1000x

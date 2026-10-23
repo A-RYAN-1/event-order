@@ -167,3 +167,61 @@ func BenchmarkAdd(b *testing.B) {
 		buf.Add(t0.Add(time.Duration(i)*time.Millisecond+time.Duration(rng.Intn(500))*time.Millisecond), i)
 	}
 }
+
+func TestAddToReusesSliceAndMatchesAdd(t *testing.T) {
+	base := time.Unix(1_700_000_000, 0)
+	a := New[int](WithMaxDelay(2 * time.Second))
+	c := New[int](WithMaxDelay(2 * time.Second))
+	var buf []Event[int]
+	for i, off := range []int{5, 1, 4, 2, 9, 3, 12, 0, 20} {
+		ts := base.Add(time.Duration(off) * time.Second)
+		want := a.Add(ts, i)
+		buf = c.AddTo(buf[:0], ts, i)
+		if len(want) != len(buf) {
+			t.Fatalf("step %d: Add released %d, AddTo %d", i, len(want), len(buf))
+		}
+		for k := range want {
+			if want[k] != buf[k] {
+				t.Fatalf("step %d: event %d differs: %v vs %v", i, k, want[k], buf[k])
+			}
+		}
+	}
+}
+
+func TestOnLateSeesDroppedEvents(t *testing.T) {
+	base := time.Unix(1_700_000_000, 0)
+	b := New[string]()
+	var got []string
+	b.OnLate(func(e Event[string]) {
+		if !e.Late {
+			t.Errorf("OnLate event not flagged Late")
+		}
+		got = append(got, e.Value)
+	})
+	b.Add(base.Add(10*time.Second), "on time")
+	b.Add(base, "too late")
+	if len(got) != 1 || got[0] != "too late" {
+		t.Fatalf("OnLate got %v", got)
+	}
+	if b.Stats().Late != 1 || b.Len() != 1 {
+		t.Fatalf("stats %+v len %d", b.Stats(), b.Len())
+	}
+}
+
+func TestPeakAndWatermarkAccessors(t *testing.T) {
+	base := time.Unix(1_700_000_000, 0)
+	b := New[int](WithMaxDelay(time.Minute))
+	if !b.Watermark().IsZero() {
+		t.Fatal("watermark should start zero")
+	}
+	for i := 0; i < 5; i++ {
+		b.Add(base.Add(time.Duration(i)*time.Second), i)
+	}
+	if s := b.Stats(); s.Peak != 5 || s.Buffered != 5 {
+		t.Fatalf("stats %+v", s)
+	}
+	b.Flush()
+	if s := b.Stats(); s.Peak != 5 || s.Buffered != 0 || !b.Watermark().Equal(base.Add(4*time.Second)) {
+		t.Fatalf("after flush %+v wm %v", s, b.Watermark())
+	}
+}
