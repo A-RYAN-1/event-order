@@ -21,6 +21,8 @@ Last updated: 2026-10-22. Status: runs locally (L1); private repository, not yet
 - [Try it](#try-it)
 - [At a glance](#at-a-glance)
 - [Features](#features)
+- [Command line](#command-line)
+- [Benchmarks](#benchmarks)
 - [Why it exists](#why-it-exists)
 - [How it works](#how-it-works)
 - [Engineering quality](#engineering-quality)
@@ -47,7 +49,7 @@ Not a hosted service: it is a library. The shortest way to see it work is the se
 2. Read `examples/sensors/main.go`: six readings arrive out of order, and the last one is too late.
 3. Change `WithMaxDelay(3*time.Second)` to `WithMaxDelay(10*time.Second)` and run again: the late reading is now in order.
 
-Output of step 1 (run 2026-10-22):
+Output of step 1 (run 2026-10-23):
 
 ```
 t+1s  21.3C
@@ -56,13 +58,16 @@ t+3s  21.5C
 t+4s  21.7C
 t+2s  21.4C (retry)  <- late
 t+9s  22.1C  (flushed)
-{Buffered:0 Released:5 Late:1 Watermark:2026-01-01 12:00:09 +0000 UTC}
+{Buffered:0 Released:5 Late:1 Peak:5 Watermark:2026-01-01 12:00:09 +0000 UTC}
 ```
 
 ## At a glance
 
 - Use `Buffer[T]` for one stream: `Add` returns what is ready, `AdvanceTo` moves the watermark from a timer or heartbeat, `Flush` empties it at shutdown.
 - Use `Keyed[K, T]` for many streams (devices, users, partitions) that must be ordered independently, so one slow key never holds back the others.
+- Use `Pipe(ctx, in, opts...)` when events already flow through a channel: it returns an ordered channel and, with `WithIdleTimeout`, releases the tail when the source goes quiet.
+- Use `Safe[T]` and `SafeKeyed[K, T]` when several goroutines feed one buffer.
+- Use the `event-order` command to sort a log or CSV by timestamp from the shell, in bounded memory.
 - Use `Reorder(seq, opts...)` to wrap an `iter.Seq` of events and range over it in order.
 - Use `WithMaxDelay` to say how far out of order events may arrive, `WithMaxBuffered` to cap memory, and `WithLatePolicy` to drop late events (counted) or emit them flagged.
 
@@ -89,11 +94,23 @@ Install: `go get github.com/A-RYAN-1/event-order` (Go 1.23 or newer, for generic
 - **Bounded delay.** The watermark is the largest event time seen minus the delay you choose; everything at or before it is released.
 - **Late-event policy.** `Drop` discards and counts; `Emit` returns the late event at once with `Late` set, so you decide.
 - **Bounded memory.** `WithMaxBuffered` releases the oldest events early instead of growing, at the price of more late arrivals.
-- **Per-key buffers.** `Keyed` isolates devices or users; `Flush(key)` forgets a finished key.
+- **Per-key buffers.** `Keyed` isolates devices or users; `Flush(key)` forgets a finished key and `AdvanceAll` forgets keys that went quiet, so memory follows the active keys.
+- **Channels and goroutines.** `Pipe` is a channel in, channel out stage with a context and an idle timeout; `Safe` and `SafeKeyed` add a mutex.
+- **A command line tool.** `event-order` sorts JSON-lines or delimited text by timestamp in a stream.
 - **No allocations on the hot path.** A typed heap and `AddTo(dst, ...)` reuse your slice.
 - **Late-event hook.** `OnLate` sees every late event, dropped or not, for a dead-letter queue or a metric.
 - **Quiet sources.** `AdvanceTo` moves the watermark without an event and never moves it backwards.
 - **Iterator form.** `Reorder` turns a Go 1.23 `iter.Seq` into an ordered one, and stops reading when you stop ranging.
+
+## Command line
+
+```
+go install github.com/A-RYAN-1/event-order/cmd/event-order@latest
+tail -f app.log | event-order -field ts -delay 5s          # JSON lines, "ts" key
+event-order -col 1 -sep , -delay 1m events.csv > sorted.csv  # CSV, first column
+```
+
+Times may be RFC 3339, Unix seconds or Unix milliseconds. Lines that arrive later than the delay are dropped, printed in place (`-late emit`) or sent to stderr (`-late stderr`), `-max-buffered N` caps memory, and `-stats` prints counters at the end. It streams: a 40 GB log sorted within a 5 second window holds only the lines of that window.
 
 ## Benchmarks
 
@@ -235,15 +252,20 @@ Rung L1 (builds and passes tests locally), checked 2026-10-22.
 
 **Known limitations**
 
-- Not safe for concurrent use.
-- No built-in idle timeout; call `AdvanceTo` yourself.
-- Not published: no tag, no pkg.go.dev page.
+- `Buffer` and `Keyed` are not safe for concurrent use; use `Safe`, `SafeKeyed` or `Pipe`.
+- Events are held in memory only: a crash loses what is held. Persist upstream (the broker offset) and replay.
+- Not published yet: no tag, no pkg.go.dev page.
 
 **Planned**
 
 - [ ] Make the repository public (the author's decision), tag `v0.1.0`
-- [ ] Timer-driven `AdvanceTo` helper and metrics hooks
-- [ ] Benchmarks against a naive sort-then-release baseline, published here
+
+**Done**
+
+- [x] Benchmarks against a naive sort-then-release baseline (see above)
+- [x] Idle timeout (`Pipe`), late-event hook (`OnLate`), goroutine-safe wrappers, `AdvanceAll`
+- [x] Command line tool
+- [x] Fuzz test for the ordering and no-loss properties
 
 ## Credits
 
