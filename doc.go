@@ -17,6 +17,9 @@
 //   - Safe and SafeKeyed add a mutex for several goroutines.
 //   - Reorder wraps an iter.Seq of events, and Merge joins several ordered
 //     sequences into one.
+//   - Tracker and KeyedTracker say which broker offset is safe to commit while
+//     events are still held, see Committing offsets.
+//   - Dedup drops repeated events from an at-least-once source, see Duplicates.
 //
 // Buffer and Keyed are not safe for concurrent use; serialise calls with a
 // mutex or a single goroutine, or use Safe, SafeKeyed or Pipe.
@@ -42,6 +45,27 @@
 // The default policy drops it and counts it in Stats.Late; Emit returns it at
 // once with Late set. OnLate sees every late event whatever the policy, for a
 // dead-letter queue or a metric.
+//
+// # Committing offsets
+//
+// A broker commit means everything before an offset is done. Events held in a
+// Buffer are not done, so committing the newest offset seen loses them if the
+// process crashes. Call Tracker.Track when an event enters the buffer and
+// Tracker.Done when it has been processed or dropped as late (OnLate), and
+// commit what Tracker.Commit returns: the lowest offset not yet done. After a
+// restart the consumer re-reads from there, so nothing is lost; events released
+// before the crash but after the commit are read again, so processing should
+// tolerate a repeat. With one Keyed buffer and one KeyedTracker per partition,
+// a rebalance revoke is Keyed.Flush(partition), Done for each flushed event,
+// then KeyedTracker.Revoke(partition) for the offset to commit.
+//
+// # Duplicates
+//
+// At-least-once delivery repeats events, often out of order. Dedup.Seen(t, id)
+// reports whether id was seen within a window of event time, and bounds its
+// memory with the window and an optional cap on ids. Call it before Buffer.Add
+// with a window at least as long as the delay plus the longest retry. It lives
+// in memory only: after a restart the earlier ids are gone.
 //
 // # Compared with a stream processor
 //
