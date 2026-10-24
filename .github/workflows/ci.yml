@@ -24,6 +24,13 @@ jobs:
       - run: go test -run xxx -fuzz FuzzKeyed -fuzztime 15s
       - run: go test -run xxx -fuzz FuzzMerge -fuzztime 15s
       - run: go test -run xxx -bench . -benchtime 1000x
+      - name: example modules
+        run: |
+          for d in examples/kafka examples/mqtt; do
+            (cd "$d" && go vet ./... && go test -race -count=1 ./...)
+          done
+      - run: go test -run xxx -fuzz FuzzTracker -fuzztime 15s
+      - run: go test -run xxx -fuzz FuzzDedup -fuzztime 15s
   portable:
     runs-on: ${{ matrix.os }}
     strategy:

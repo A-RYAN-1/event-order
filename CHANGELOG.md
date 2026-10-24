@@ -6,6 +6,8 @@ All notable changes are listed here, newest first. The format follows [Keep a Ch
 
 ### Added
 
+- `examples/kafka` (kafka-go) and `examples/mqtt` (paho): integration examples, each its own module, tested without a broker.
+- MIT `LICENSE`.
 - `Tracker` and `KeyedTracker`: the broker offset that is safe to commit while events are held for reordering (lowest offset not done), with `Revoke` for partition rebalances.
 - `Dedup`: bounded event-time window of seen ids to drop repeats from at-least-once sources, with an optional id cap.
 - `WithDelayStrategy`, the `DelayStrategy` interface and `PercentileDelay`: the delay follows the observed disorder (a percentile of recent lags), with `WithMaxDelay` as the floor.

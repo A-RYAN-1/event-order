@@ -8,4 +8,6 @@ Thanks for looking. The library is deliberately small: event-time ordering with 
 4. **Commit style:** one imperative line (`fix: release equal times in arrival order`), body if the reason is not obvious.
 5. **Review:** every change goes through a pull request approved by the maintainer; CI (`go vet`, `gofmt`, `go test -race` on Go 1.23 and stable) must pass.
 
+By submitting a pull request you agree that your contribution is licensed under the MIT License in `LICENSE`, the same as the rest of the project.
+
 Performance changes need a before and after from `go test -run xxx -bench . -benchmem`.
