@@ -67,6 +67,8 @@ t+9s  22.1C  (flushed)
 - Use `Keyed[K, T]` for many streams (devices, users, partitions) that must be ordered independently, so one slow key never holds back the others.
 - Use `Pipe(ctx, in, opts...)` when events already flow through a channel: it returns an ordered channel and, with `WithIdleTimeout`, releases the tail when the source goes quiet.
 - Use `Safe[T]` and `SafeKeyed[K, T]` when several goroutines feed one buffer.
+- Use `Tracker` (or `KeyedTracker` per partition) when you consume from a broker: it says which offset is safe to commit while events are still held, so a crash loses nothing.
+- Use `Dedup` in front of the buffer when the source is at-least-once: it drops repeated ids inside a bounded window of event time.
 - Use the `event-order` command to sort a log or CSV by timestamp from the shell, in bounded memory.
 - Use `Reorder(seq, opts...)` to wrap an `iter.Seq` of events and range over it in order.
 - Use `WithMaxDelay` to say how far out of order events may arrive, `WithMaxBuffered` to cap memory, and `WithLatePolicy` to drop late events (counted) or emit them flagged.
@@ -123,7 +125,7 @@ Against the loop most services write first (append, sort the whole slice, releas
 | Disorder window 16 | 117 ns | 250 ns | 0 vs 3 |
 | Disorder window 256 | 131 ns | 1303 ns | 0 vs 3 |
 
-The sort-every-time cost grows with the window; the heap's grows with its logarithm, so the gap widens as disorder grows. `AddTo` appends into a slice you reuse, so the steady state allocates nothing. Reproduce with `go test -run xxx -bench . -benchmem`; the code is in `bench_test.go`. `PercentileDelay` adds a sorted-window update per Add (measured 2026-10-23, same machine, 1,024-event window, 0 allocations: 425 ns at disorder 16 and 628 ns at disorder 256, against 102 and 125 ns for a fixed delay); `Merge` costs about 110 ns per event for 2 sources and 185 ns for 16. A fuzz test (`go test -fuzz FuzzBuffer`) checks that output is sorted and no event is lost or invented.
+The sort-every-time cost grows with the window; the heap's grows with its logarithm, so the gap widens as disorder grows. `AddTo` appends into a slice you reuse, so the steady state allocates nothing. Reproduce with `go test -run xxx -bench . -benchmem`; the code is in `bench_test.go`. `PercentileDelay` adds a sorted-window update per Add (measured 2026-10-23, same machine, 1,024-event window, 0 allocations: 425 ns at disorder 16 and 628 ns at disorder 256, against 102 and 125 ns for a fixed delay); `Merge` costs about 110 ns per event for 2 sources and 185 ns for 16. `Tracker` costs 57 to 59 ns per Track plus Done plus Commit cycle and `Dedup` 180 to 215 ns per `Seen`, both 0 allocations (measured 2026-10-24, same machine). A fuzz test (`go test -fuzz FuzzBuffer`) checks that output is sorted and no event is lost or invented.
 
 ## Why it exists
 

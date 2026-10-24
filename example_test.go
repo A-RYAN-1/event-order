@@ -108,3 +108,58 @@ func ExampleMerge() {
 	// s3
 	// n4
 }
+
+// A consumer that holds events for reordering must not commit the offset of
+// events still in the buffer. The Tracker gives the offset that is safe.
+func ExampleTracker() {
+	t0 := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+	b := eventorder.New[int64](eventorder.WithMaxDelay(2 * time.Second))
+	tr := eventorder.NewTracker()
+
+	// Offsets 0, 1, 2 arrive; their event times are 3s, 1s, 2s.
+	for offset, sec := range []int{3, 1, 2} {
+		tr.Track(int64(offset))
+		for _, ev := range b.Add(t0.Add(time.Duration(sec)*time.Second), int64(offset)) {
+			tr.Done(ev.Value) // processed
+		}
+	}
+	next, _ := tr.Commit()
+	fmt.Println("safe to commit:", next, "pending:", tr.Pending())
+
+	for _, ev := range b.Flush() { // shutdown: process the rest
+		tr.Done(ev.Value)
+	}
+	next, _ = tr.Commit()
+	fmt.Println("after flush:", next)
+	// Output:
+	// safe to commit: 0 pending: 3
+	// after flush: 3
+}
+
+// A retrying producer sends some events twice. Dedup drops the second copy
+// before it reaches the Buffer.
+func ExampleDedup() {
+	t0 := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+	d := eventorder.NewDedup[string](time.Minute, 0)
+	b := eventorder.New[string](eventorder.WithMaxDelay(5 * time.Second))
+
+	for _, m := range []struct {
+		id  string
+		sec int
+	}{{"a", 1}, {"b", 2}, {"a", 1}, {"c", 3}} {
+		ts := t0.Add(time.Duration(m.sec) * time.Second)
+		if d.Seen(ts, m.id) {
+			continue
+		}
+		b.Add(ts, m.id)
+	}
+	for _, ev := range b.Flush() {
+		fmt.Println(ev.Value)
+	}
+	fmt.Println("duplicates dropped:", d.Duplicates())
+	// Output:
+	// a
+	// b
+	// c
+	// duplicates dropped: 1
+}
