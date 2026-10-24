@@ -21,6 +21,8 @@ jobs:
       - run: go build ./...
       - run: go test -race -count=1 -cover ./...
       - run: go test -run xxx -fuzz FuzzBuffer -fuzztime 15s
+      - run: go test -run xxx -fuzz FuzzKeyed -fuzztime 15s
+      - run: go test -run xxx -fuzz FuzzMerge -fuzztime 15s
       - run: go test -run xxx -bench . -benchtime 1000x
   portable:
     runs-on: ${{ matrix.os }}
