@@ -10,4 +10,4 @@ Thanks for looking. The library is deliberately small: event-time ordering with 
 
 By submitting a pull request you agree that your contribution is licensed under the MIT License in `LICENSE`, the same as the rest of the project.
 
-Performance changes need a before and after from `go test -run xxx -bench . -benchmem`.
+Performance changes need a before and after: run `scripts/bench.sh before.txt` on the base commit and `scripts/bench.sh after.txt` on yours, then show `benchstat before.txt after.txt` (needs `go install golang.org/x/perf/cmd/benchstat@latest`).
