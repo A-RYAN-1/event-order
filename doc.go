@@ -20,6 +20,8 @@
 //   - Tracker and KeyedTracker say which broker offset is safe to commit while
 //     events are still held, see Committing offsets.
 //   - Dedup drops repeated events from an at-least-once source, see Duplicates.
+//   - Stream wires Keyed, KeyedTracker and Dedup for a broker consumer in the
+//     right order, see Consumer glue.
 //   - Aligned turns the watermarks of several sources into one safe watermark,
 //     see Several sources.
 //
@@ -68,6 +70,16 @@
 // memory with the window and an optional cap on ids. Call it before Buffer.Add
 // with a window at least as long as the delay plus the longest retry. It lives
 // in memory only: after a restart the earlier ids are gone.
+//
+// # Consumer glue
+//
+// Using Dedup, Keyed and KeyedTracker together has an order that is easy to get
+// wrong: track the offset first, drop duplicates, finish late events, mark
+// released events done only after processing. Stream does that. Per message
+// call Ingest, process the Records it returns, call Done for each, and commit
+// Commit(key). Revoke(key, fn) handles a lost partition and Flush(fn) a clean
+// shutdown. Watermark(key) gives the value to feed to an Aligned when the
+// partitions are merged into one ordered stream.
 //
 // # Several sources
 //
