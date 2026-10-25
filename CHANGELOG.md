@@ -6,6 +6,7 @@ All notable changes are listed here, newest first. The format follows [Keep a Ch
 
 ### Added
 
+- `Stream`: the consumer glue in one type. `Ingest` takes a message (key, offset, time, id, value), drops duplicates, holds it per key and tracks its offset; `Done`, `Commit`, `Revoke`, `Flush`, `AdvanceAll` and `Watermark` complete the flow, so the order of Dedup, Buffer and Tracker calls is right by construction. Proof: crash-and-restart property test (nothing lost, commit never moves back), partitions aligned into one globally ordered stream, `FuzzStream`, mutation checks.
 - `Aligned`: one watermark over several sources (the minimum of the source watermarks, idle sources left out by hand or by timeout, never moving back) and a per-source lag report. Proof: reference model, fuzz, race test, mutation checks.
 - `examples/kafka` (kafka-go) and `examples/mqtt` (paho): integration examples, each its own module, tested without a broker.
 - MIT `LICENSE`.

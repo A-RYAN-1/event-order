@@ -58,6 +58,7 @@ of order and the last one is too late. Change `WithMaxDelay(3*time.Second)` to `
 | Many streams (devices, users, partitions) | `Keyed[K, T]`: one buffer per key, `Flush(key)` and `AdvanceAll` forget finished keys |
 | A channel | `Pipe`: channel in, ordered channel out, with a context and `WithIdleTimeout` for quiet sources |
 | Several goroutines | `Safe`, `SafeKeyed`: the same with a mutex |
+| Kafka or MQTT consumer glue | `Stream`: duplicates, per-key ordering and safe commit offsets in one type |
 | One watermark over several sources | `Aligned`: minimum of the source watermarks, idle sources excluded, `Lag` names the holder |
 | Several ordered sources | `Merge` over `iter.Seq`; `Reorder` wraps one `iter.Seq` |
 | A broker that needs commits | `Tracker`, `KeyedTracker`: the offset that is safe to commit while events are held, `Revoke` for rebalances |
