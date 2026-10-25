@@ -20,6 +20,8 @@
 //   - Tracker and KeyedTracker say which broker offset is safe to commit while
 //     events are still held, see Committing offsets.
 //   - Dedup drops repeated events from an at-least-once source, see Duplicates.
+//   - Aligned turns the watermarks of several sources into one safe watermark,
+//     see Several sources.
 //
 // Buffer and Keyed are not safe for concurrent use; serialise calls with a
 // mutex or a single goroutine, or use Safe, SafeKeyed or Pipe.
@@ -66,6 +68,18 @@
 // memory with the window and an optional cap on ids. Call it before Buffer.Add
 // with a window at least as long as the delay plus the longest retry. It lives
 // in memory only: after a restart the earlier ids are gone.
+//
+// # Several sources
+//
+// Ordering a merged stream by the fastest source's clock makes every event of
+// a slower source late. Aligned keeps one watermark per source and releases
+// by their minimum: report each source's watermark with Observe (for example
+// its Buffer.Watermark) and pass the combined value to the downstream
+// Buffer.AdvanceTo. Register every source up front so the others wait for it;
+// a source that Observe meets first is not waited for. A silent source holds
+// everything back, so mark it Idle or set WithSourceIdleTimeout; Lag names the
+// source that is holding the watermark. The combined watermark never moves
+// back, so a source that rejoins behind it only has late events of its own.
 //
 // # Compared with a stream processor
 //
