@@ -245,11 +245,11 @@ checkpointing: it does not give exactly-once, and it does not replace a stream e
 
 ## Engineering quality and proof
 
-Measured on Windows, amd64, Go 1.27.0, i5-13450HX: the tests and fuzz rows on 2026-10-24, the cost rows on 2026-10-27. CI runs the same tests with `-race` on Linux, plus Windows and macOS.
+Measured on Windows, amd64, Go 1.27.0, i5-13450HX: coverage and cost rows on 2026-10-27, the other rows on 2026-10-24. CI runs the same tests with `-race` on Linux, plus Windows and macOS.
 
 | Check | Result |
 |---|---|
-| Statement coverage | 97.8 percent (`go test -cover .`) |
+| Statement coverage | 97.4 percent on 2026-10-27 (`go test -cover .`); CI fails under 95 percent |
 | Reference-model property tests | 3,000 random operation sequences for `Buffer`, 1,000 for `Keyed`, 2,000 each for `Tracker` and `Dedup`, output identical to a sort-every-step reference, call for call |
 | Crash safety | 300 random runs of `Buffer` plus `Tracker`: the commit offset never passes an unprocessed event |
 | Mutation check | removing the boundary nanosecond, the arrival tie-break, the head advance of `Tracker`, the expiry bound or the cap of `Dedup` each fails tests |
@@ -339,7 +339,8 @@ Known limitations: see [Limits](#limits).
 
 Planned:
 
-- [ ] Security and quality checks in CI: govulncheck, CodeQL, OpenSSF Scorecard, coverage report
+- [x] govulncheck and a coverage floor in CI; CodeQL and OpenSSF Scorecard are in place and start when the repository is public
+- [ ] Codecov, Go Report Card and the OpenSSF Best Practices badge
 - [ ] Bots, releases and repository settings for the public flip (stale, labeler, release notes, branch rules)
 - [ ] Community files: support, governance, architecture notes
 - [ ] v0.3 contributor issues: Watermill middleware, Redis Streams example, OpenTelemetry adapter in a separate module,
