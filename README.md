@@ -15,7 +15,7 @@ Zero dependencies. Bounded memory. Safe offsets to commit while events are held.
 <a href="#related-work">Related work</a>
 </p>
 
-<p align="center"><sub>Status: v0.x, the API may change between minor versions. Last updated 2026-10-24.</sub></p>
+<p align="center"><sub>Status: v0.x, the API may change between minor versions. Last updated 2026-10-27.</sub></p>
 
 ---
 
@@ -90,9 +90,9 @@ if !d.Seen(msg.Time, msg.ID) {
 ## Why not container/heap
 
 The honest answer: you can write the ordering part yourself in about forty lines, and a hand-rolled `container/heap` loop
-is not slower in a way you will notice. Measured 2026-10-24 on the same shuffled input (Windows laptop, Go 1.27, 16
-threads, three runs): this library 192 to 196 ns per event with 0 allocations; a plain `container/heap` loop 163 to 429 ns
-(noisy) with 1 allocation. Speed is not the reason to use this library.
+is not slower in a way you will notice. An earlier hand-rolled `container/heap` loop measured within noise of this library
+(163 to 429 ns against 192 ns, 2026-10-24, not kept in the repo, so no current figure is claimed). `Buffer.Add` costs
+105 to 131 ns per event with 0 allocations (table below). Speed is not the reason to use this library.
 
 The reason is the decisions around the heap that are easy to get subtly wrong, each tested here against a reference
 implementation that shares no code with it: the exact lateness boundary; ties kept in arrival order; the memory cap never
@@ -111,6 +111,10 @@ channel so its tests run without a broker.
   message instead loses readings in all 200.
 - `examples/mqtt` (`eclipse/paho.mqtt.golang`): a subscriber that orders readings with `Pipe` and releases the tail when
   the broker goes quiet.
+- `examples/watermill` (`ThreeDotsLabs/watermill`): a router handler that holds messages and publishes them in event-time
+  order, plus an idle drain for the tail of a quiet topic. Limit: Watermill acknowledges a message when the handler
+  returns, so a message being held is lost on a crash; where that matters use `Stream` with the broker client, as in the
+  Kafka example.
 
 Rebalances: `kafka-go` can deliver messages fetched before a rebalance after it (its issue
 [1398](https://github.com/segmentio/kafka-go/issues/1398) describes it, still open when this was written). `Tracker`
@@ -131,7 +135,7 @@ stderr (`-late stderr`); `-max-buffered N` caps memory; `-stats` prints counters
 
 ## Proof
 
-Measured 2026-10-24 on Windows, amd64, Go 1.27.0. CI runs the same tests with `-race` on Linux, plus Windows and macOS.
+Measured on Windows, amd64, Go 1.27.0, i5-13450HX: the tests and fuzz rows on 2026-10-24, the cost rows on 2026-10-27. CI runs the same tests with `-race` on Linux, plus Windows and macOS.
 
 | Check | Result |
 |---|---|
@@ -141,10 +145,10 @@ Measured 2026-10-24 on Windows, amd64, Go 1.27.0. CI runs the same tests with `-
 | Mutation check | removing the boundary nanosecond, the arrival tie-break, the head advance of `Tracker`, the expiry bound or the cap of `Dedup` each fails tests |
 | Fuzz | `FuzzKeyed` 857,827 executions, `FuzzMerge` 45,326, `FuzzTracker` 3,852,990, `FuzzDedup` 3,684,370, no failure |
 | Memory | about 100 bytes per held event; `Len` never above the cap over 200,000 adds; `Dedup` holds about window-many ids |
-| Cost per call | `Add` 117 to 196 ns, 0 allocations (`AddTo`); `Tracker` Track plus Done plus Commit 57 to 59 ns; `Dedup.Seen` 180 to 215 ns; all 0 allocations |
-| Against sort-every-add | 131 ns against 1,303 ns at a disorder window of 256 |
+| Cost per call | median of 10 runs, 0 allocations each: `Buffer.Add` 105 ns (jitter 16) and 131 ns (jitter 256); `Aligned.Observe` 109 ns; `Stream.Ingest` 230 ns; `Tracker` Track plus Done plus Commit 50 ns; `Dedup.Seen` 237 ns. Run-to-run spread is 1 to 5 percent for the first four rows and 31 to 75 percent for `Tracker` and `Dedup` on this laptop, so read those two as rough |
+| Against sort-every-add | 131 ns against 1,493 ns at a disorder window of 256 (3 allocations per add for the baseline) |
 
-Reproduce with `go test -count=1 -cover ./...`, `go test -run xxx -bench . -benchmem` and
+Reproduce with `go test -count=1 -cover ./...`, `scripts/bench.sh` (`-count 10` plus `benchstat`; install with `go install golang.org/x/perf/cmd/benchstat@latest`) and
 `go test -run xxx -fuzz FuzzTracker -fuzztime 20s`.
 
 ## Limits
