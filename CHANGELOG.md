@@ -4,6 +4,10 @@ All notable changes are listed here, newest first. The format follows [Keep a Ch
 
 ## [Unreleased]
 
+### Changed
+
+- README with a logo, light and dark figures for the three gaps, the architecture, the benchmark and the example output; `scripts/gen_docs_assets.py` regenerates them. Discussions link in the issue chooser.
+
 ## [0.2.0] - not yet tagged (Phase 1 closed 2026-10-27)
 
 ### Added
