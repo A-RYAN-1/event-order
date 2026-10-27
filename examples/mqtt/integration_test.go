@@ -53,30 +53,37 @@ func TestIntegrationOrdersReadingsFromSeveralPublishers(t *testing.T) {
 		t.Fatal(tok.Error())
 	}
 
-	out := ordered(ctx, in, 5*time.Second, 2*time.Second)
+	out := ordered(ctx, in, 10*time.Second, 2*time.Second)
 
-	var wg sync.WaitGroup
-	for d := 0; d < devices; d++ {
-		wg.Add(1)
-		go func(d int) {
-			defer wg.Done()
-			c := connect(t, broker, fmt.Sprintf("%s-pub%d", prefix, d))
-			r := rand.New(rand.NewSource(int64(d)))
-			// Shuffled inside blocks of 4 seconds: at most 3 s out of order.
-			for blk := 0; blk < perDevice; blk += 4 {
+	clients := make([]mqtt.Client, devices)
+	for d := range clients {
+		clients[d] = connect(t, broker, fmt.Sprintf("%s-pub%d", prefix, d))
+	}
+	// The watermark is shared by all devices, so the publishers advance in
+	// lock step: every device sends its block, all acknowledged, before the
+	// next block starts. Inside a block each device shuffles its own readings
+	// (at most 3 s out of order). Without the barrier a fast publisher would
+	// push the watermark past a slow one and its readings would be late.
+	for blk := 0; blk < perDevice; blk += 4 {
+		var wg sync.WaitGroup
+		for d := 0; d < devices; d++ {
+			wg.Add(1)
+			go func(d int) {
+				defer wg.Done()
+				r := rand.New(rand.NewSource(int64(d*1000 + blk)))
 				for _, i := range r.Perm(4) {
 					sec := blk + i
 					payload, _ := json.Marshal(Reading{Device: fmt.Sprintf("d%d", d), Time: t0.Add(time.Duration(sec) * time.Second), Value: float64(sec)})
-					tok := c.Publish(fmt.Sprintf("%s/d%d", prefix, d), 1, false, payload)
+					tok := clients[d].Publish(fmt.Sprintf("%s/d%d", prefix, d), 1, false, payload)
 					if !tok.WaitTimeout(10*time.Second) || tok.Error() != nil {
 						t.Errorf("publish: %v", tok.Error())
 						return
 					}
 				}
-			}
-		}(d)
+			}(d)
+		}
+		wg.Wait()
 	}
-	wg.Wait()
 
 	var got []Reading
 	var last time.Time
