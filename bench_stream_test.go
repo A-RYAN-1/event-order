@@ -23,7 +23,7 @@ func BenchmarkAlignedObserve(b *testing.B) {
 func BenchmarkStreamIngest(b *testing.B) {
 	b.ReportAllocs()
 	ts := disordered(1<<16, 256)
-	s := NewStream[int, int](WithBuffer(WithMaxDelay(256*time.Millisecond)))
+	s := NewStream[int, int](WithBuffer(WithMaxDelay(256 * time.Millisecond)))
 	var next [8]int64
 	for i := 0; i < b.N; i++ {
 		key := i & 7
