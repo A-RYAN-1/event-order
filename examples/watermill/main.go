@@ -121,7 +121,9 @@ func toMessages(evs []eventorder.Event[*message.Message]) []*message.Message {
 
 func main() {
 	logger := watermill.NopLogger{}
-	pubsub := gochannel.NewGoChannel(gochannel.Config{}, logger)
+	// Blocking publish keeps messages in publish order; by default gochannel
+	// delivers each one from its own goroutine, which would reorder them.
+	pubsub := gochannel.NewGoChannel(gochannel.Config{BlockPublishUntilSubscriberAck: true}, logger)
 	router, err := message.NewRouter(message.RouterConfig{}, logger)
 	if err != nil {
 		log.Fatal(err)
