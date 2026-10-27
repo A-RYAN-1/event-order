@@ -25,7 +25,7 @@ func newMsg(sec int) *message.Message {
 func start(t *testing.T, delay time.Duration) (*gochannel.GoChannel, *Reorderer, <-chan *message.Message, context.Context) {
 	t.Helper()
 	logger := watermill.NopLogger{}
-	ps := gochannel.NewGoChannel(gochannel.Config{}, logger)
+	ps := gochannel.NewGoChannel(gochannel.Config{BlockPublishUntilSubscriberAck: true}, logger)
 	router, err := message.NewRouter(message.RouterConfig{}, logger)
 	if err != nil {
 		t.Fatal(err)
