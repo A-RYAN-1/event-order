@@ -131,6 +131,20 @@ func (s *Stream[K, T]) Ingest(key K, offset int64, t time.Time, id string, v T) 
 	return s.records(s.buf.Add(key, t, entry[T]{offset: offset, value: v}))
 }
 
+// Skip records a message that is finished without being processed, for example
+// a payload that cannot be decoded, so the commit position can move past it.
+// It reports false for an offset not above the last one seen for the key.
+func (s *Stream[K, T]) Skip(key K, offset int64) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if !s.track.Track(key, offset) {
+		s.skipped++
+		return false
+	}
+	s.track.Done(key, offset)
+	return true
+}
+
 // AdvanceAll releases what is due at time t in every key, see
 // Keyed.AdvanceAll, calling fn once per key with its records. Call it
 // periodically so quiet keys drain and are forgotten.

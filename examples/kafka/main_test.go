@@ -131,3 +131,38 @@ func TestCrashNeverLosesAReading(t *testing.T) {
 		}
 	}
 }
+
+// idleReader serves its messages, then reports a fetch timeout once (the topic
+// went quiet), calls resumed when the consumer fetches again, and then ends.
+type idleReader struct {
+	fakeReader
+	timedOut bool
+	resumed  func()
+}
+
+func (f *idleReader) FetchMessage(ctx context.Context) (kafka.Message, error) {
+	if f.next >= len(f.script) {
+		if !f.timedOut {
+			f.timedOut = true
+			<-ctx.Done()
+			return kafka.Message{}, ctx.Err()
+		}
+		f.resumed()
+	}
+	return f.fakeReader.FetchMessage(ctx)
+}
+
+func TestIdleReleasesTheTailBeforeTheStop(t *testing.T) {
+	var got []string
+	var atResume int
+	var commitsAtResume int
+	fr := &idleReader{fakeReader: fakeReader{script: []kafka.Message{msg(0, 0, "b", 2), msg(0, 1, "a", 1)}}}
+	fr.resumed = func() { atResume, commitsAtResume = len(got), len(fr.commits) }
+	cfg := config{maxDelay: time.Hour, window: time.Hour, idle: 20 * time.Millisecond}
+	if err := consume(context.Background(), fr, cfg, func(_ int, rd Reading) { got = append(got, rd.ID) }); err != nil {
+		t.Fatal(err)
+	}
+	if atResume != 2 || commitsAtResume == 0 || fmt.Sprint(got) != "[a b]" {
+		t.Fatalf("handled %d and committed %d times when the consumer resumed after idle; got %v", atResume, commitsAtResume, got)
+	}
+}

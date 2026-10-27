@@ -47,6 +47,9 @@ jobs:
       - run: go test -count=1 ./...
   lint:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        dir: [".", examples/kafka, examples/mqtt]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -55,3 +58,31 @@ jobs:
       - uses: golangci/golangci-lint-action@v9
         with:
           version: v2.15.0
+          working-directory: ${{ matrix.dir }}
+          args: --config=${{ github.workspace }}/.golangci.yml
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - name: start brokers
+        run: |
+          docker run -d --name kafka -p 9092:9092 apache/kafka:3.9.0
+          docker run -d --name mosquitto -p 1883:1883 eclipse-mosquitto:2 mosquitto -c /mosquitto-no-auth.conf
+          timeout 60 sh -c 'until nc -z localhost 9092 && nc -z localhost 1883; do sleep 1; done'
+          sleep 10
+      - name: kafka (restart from committed offsets, rebalance)
+        working-directory: examples/kafka
+        env:
+          KAFKA_BROKERS: localhost:9092
+        run: go test -tags integration -count=1 -v -run Integration .
+      - name: mqtt (several publishers)
+        working-directory: examples/mqtt
+        env:
+          MQTT_BROKER: tcp://localhost:1883
+        run: go test -tags integration -count=1 -v -run Integration .
+      - name: broker logs on failure
+        if: failure()
+        run: docker logs kafka | tail -50; docker logs mosquitto | tail -20

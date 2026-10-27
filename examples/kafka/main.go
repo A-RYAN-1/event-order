@@ -38,15 +38,12 @@ type reader interface {
 	CommitMessages(ctx context.Context, msgs ...kafka.Message) error
 }
 
-// held is what the buffer keeps per event: the reading and where it came from.
-type held struct {
-	offset  int64
-	reading Reading
-}
-
 type config struct {
 	maxDelay time.Duration
 	window   time.Duration
+	// idle releases everything held after this long without a message, so the
+	// last readings of a quiet topic are not stranded. Zero never does.
+	idle time.Duration
 }
 
 // consume runs until ctx is cancelled or the reader fails. handle receives
@@ -54,56 +51,70 @@ type config struct {
 // flushes what it holds, handles it and commits; on a crash the commit stays
 // at the first reading not yet handled.
 func consume(ctx context.Context, r reader, cfg config, handle func(partition int, rd Reading)) error {
-	type part struct {
-		topic     string
-		committed int64
-	}
-	buffers := eventorder.NewKeyed[int, held](eventorder.WithMaxDelay(cfg.maxDelay))
-	tracker := eventorder.NewKeyedTracker[int]()
-	dedup := eventorder.NewDedup[string](cfg.window, 100_000)
-	parts := map[int]*part{}
-
-	// A reading that arrives after the watermark is dropped; it is finished.
-	buffers.OnLate(func(p int, e eventorder.Event[held]) { tracker.Done(p, e.Value.offset) })
+	stream := eventorder.NewStream[int, Reading](
+		eventorder.WithBuffer(eventorder.WithMaxDelay(cfg.maxDelay)),
+		eventorder.WithDedup(cfg.window, 100_000))
+	topics := map[int]string{}
+	committed := map[int]int64{}
 
 	commit := func(p int) error {
-		next, ok := tracker.Commit(p)
-		st := parts[p]
-		if !ok || next <= st.committed {
+		next, ok := stream.Commit(p)
+		if !ok || next <= committed[p] {
 			return nil
 		}
 		// kafka-go commits Offset+1 of the message it is given.
-		if err := r.CommitMessages(ctx, kafka.Message{Topic: st.topic, Partition: p, Offset: next - 1}); err != nil {
+		if err := r.CommitMessages(ctx, kafka.Message{Topic: topics[p], Partition: p, Offset: next - 1}); err != nil {
 			return err
 		}
-		st.committed = next
+		committed[p] = next
 		return nil
 	}
-	finish := func(p int, evs []eventorder.Event[held]) {
-		for _, e := range evs {
-			handle(p, e.Value.reading)
-			tracker.Done(p, e.Value.offset)
+	finish := func(p int, recs []eventorder.Record[Reading]) {
+		for _, rec := range recs {
+			handle(p, rec.Value)
+			stream.Done(p, rec.Offset)
 		}
 	}
 
+	// drain handles everything still held and commits it.
+	drain := func() error {
+		stream.Flush(func(p int, rec eventorder.Record[Reading]) { handle(p, rec.Value) })
+		for p := range topics {
+			if err := commit(p); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
 	for {
-		msg, err := r.FetchMessage(ctx)
+		fctx, cancel := ctx, context.CancelFunc(func() {})
+		if cfg.idle > 0 {
+			fctx, cancel = context.WithTimeout(ctx, cfg.idle)
+		}
+		msg, err := r.FetchMessage(fctx)
+		cancel()
 		if err != nil {
+			if ctx.Err() == nil && errors.Is(err, context.DeadlineExceeded) {
+				if err := drain(); err != nil { // idle: nothing arrived for cfg.idle
+					return err
+				}
+				continue
+			}
 			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 				break
 			}
 			return err
 		}
 		p := msg.Partition
-		if parts[p] == nil {
-			parts[p] = &part{topic: msg.Topic, committed: -1}
+		if _, seen := topics[p]; !seen {
+			topics[p] = msg.Topic
 		}
-		tracker.Track(p, msg.Offset)
 		var rd Reading
-		if err := json.Unmarshal(msg.Value, &rd); err != nil || dedup.Seen(rd.Time, rd.ID) {
-			tracker.Done(p, msg.Offset) // unreadable or repeated: finished
+		if err := json.Unmarshal(msg.Value, &rd); err != nil {
+			stream.Skip(p, msg.Offset) // unreadable: finished, so the commit moves past it
 		} else {
-			finish(p, buffers.Add(p, rd.Time, held{offset: msg.Offset, reading: rd}))
+			finish(p, stream.Ingest(p, msg.Offset, rd.Time, rd.ID, rd))
 		}
 		if err := commit(p); err != nil {
 			return err
@@ -111,15 +122,7 @@ func consume(ctx context.Context, r reader, cfg config, handle func(partition in
 	}
 
 	// Clean stop: process everything still held, then commit.
-	buffers.FlushAll(func(p int, evs []eventorder.Event[held]) {
-		finish(p, evs)
-	})
-	for p := range parts {
-		if err := commit(p); err != nil {
-			return err
-		}
-	}
-	return nil
+	return drain()
 }
 
 func main() {
@@ -128,6 +131,7 @@ func main() {
 	group := flag.String("group", "event-order-demo", "consumer group")
 	delay := flag.Duration("delay", 5*time.Second, "how far out of order readings may arrive")
 	window := flag.Duration("dedup-window", time.Minute, "how long ids are remembered")
+	idle := flag.Duration("idle", 30*time.Second, "release held readings after this much silence")
 	flag.Parse()
 
 	r := kafka.NewReader(kafka.ReaderConfig{
@@ -135,11 +139,11 @@ func main() {
 		Topic:   *topic,
 		GroupID: *group,
 	})
-	defer r.Close()
+	defer func() { _ = r.Close() }()
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
-	err := consume(ctx, r, config{maxDelay: *delay, window: *window}, func(p int, rd Reading) {
+	err := consume(ctx, r, config{maxDelay: *delay, window: *window, idle: *idle}, func(p int, rd Reading) {
 		fmt.Printf("partition %d  %s  %s  %.1f\n", p, rd.Time.Format(time.RFC3339), rd.ID, rd.Value)
 	})
 	if err != nil {

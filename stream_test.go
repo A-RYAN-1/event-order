@@ -104,6 +104,24 @@ func TestStreamSkipsReplayedOffsets(t *testing.T) {
 	}
 }
 
+func TestStreamSkipMovesTheCommitPast(t *testing.T) {
+	s := NewStream[int, int](WithBuffer(WithMaxDelay(time.Hour)))
+	s.Ingest(0, 0, at(1), "", 1)
+	if !s.Skip(0, 1) {
+		t.Fatal("Skip refused a new offset")
+	}
+	if s.Skip(0, 1) {
+		t.Fatal("Skip accepted a repeated offset")
+	}
+	if off, _ := s.Commit(0); off != 0 {
+		t.Fatalf("commit %d, want 0: offset 0 is still held", off)
+	}
+	s.Flush(func(int, Record[int]) {})
+	if off, _ := s.Commit(0); off != 2 {
+		t.Fatalf("commit %d, want 2", off)
+	}
+}
+
 func TestStreamRevokeGivesTheOffsetAndStartsClean(t *testing.T) {
 	s := NewStream[string, int](WithBuffer(WithMaxDelay(time.Minute)))
 	s.Ingest("p0", 10, at(1), "", 1)
