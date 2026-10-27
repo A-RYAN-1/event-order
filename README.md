@@ -1,3 +1,5 @@
+<p align="center"><img alt="event-order logo" src="docs/assets/logo.svg" width="54"></p>
+
 <h1 align="center">event-order</h1>
 
 <p align="center">
@@ -12,6 +14,21 @@ Zero dependencies, bounded memory, one import: no cluster to run.
 <a href="#why-not-containerheap-or-flink">Why not heap or Flink</a> |
 <a href="#engineering-quality-and-proof">Proof</a> |
 <a href="#status-and-roadmap">Roadmap</a>
+</p>
+
+<p align="center">
+<a href="https://github.com/A-RYAN-1/event-order/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/A-RYAN-1/event-order/actions/workflows/ci.yml/badge.svg"></a>
+<a href="https://pkg.go.dev/github.com/A-RYAN-1/event-order"><img alt="Go Reference" src="https://pkg.go.dev/badge/github.com/A-RYAN-1/event-order.svg"></a>
+<img alt="Go version" src="https://img.shields.io/github/go-mod/go-version/A-RYAN-1/event-order">
+<img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue.svg">
+<img alt="Dependencies: none" src="https://img.shields.io/badge/dependencies-0-brightgreen.svg">
+</p>
+
+<p align="center">
+<picture>
+<source media="(prefers-color-scheme: dark)" srcset="docs/assets/hero-dark.svg">
+<img alt="Events arrive shuffled and are released in event-time order" src="docs/assets/hero-light.svg">
+</picture>
 </p>
 
 <p align="center"><sub>Status: v0.x, the API may change between minor versions. Last updated: 2026-10-27. Private until the first public release.</sub></p>
@@ -55,7 +72,16 @@ reference model that shares no code with it.
 
 Sorting events is the easy part. These are the parts that are easy to get wrong, and what this library does about each.
 
-**A1. Offsets you can commit while events are held.** A consumer that holds events to reorder them cannot commit the
+### A1. Offsets you can commit while events are held
+
+<p align="center">
+<picture>
+<source media="(prefers-color-scheme: dark)" srcset="docs/assets/a1-commit-dark.svg">
+<img alt="Safe commit offset 3 against the naive commit of 8" src="docs/assets/a1-commit-light.svg">
+</picture>
+</p>
+
+ A consumer that holds events to reorder them cannot commit the
 offset of the last message it fetched, because a crash then loses everything still held.
 
 ```go
@@ -77,7 +103,16 @@ The Kafka example simulates a crash at a random point in a shuffled three-partit
 committed offsets: across 200 random crashes no reading is lost, and the consumer that commits the offset of every
 fetched message loses readings in all 200.
 
-**A2. Duplicates from at-least-once sources.** Brokers redeliver. `Dedup` drops repeated ids inside a bounded window of
+### A2. Duplicates from at-least-once sources
+
+<p align="center">
+<picture>
+<source media="(prefers-color-scheme: dark)" srcset="docs/assets/a2-dedup-dark.svg">
+<img alt="A repeated id inside the window is dropped" src="docs/assets/a2-dedup-light.svg">
+</picture>
+</p>
+
+ Brokers redeliver. `Dedup` drops repeated ids inside a bounded window of
 event time, so memory stays near the window size instead of growing with the stream.
 
 ```go
@@ -89,7 +124,16 @@ if !d.Seen(msg.Time, msg.ID) {
 }
 ```
 
-**A3. One watermark over several sources.** Release by the fastest partition's clock and the slower partitions' events
+### A3. One watermark over several sources
+
+<p align="center">
+<picture>
+<source media="(prefers-color-scheme: dark)" srcset="docs/assets/a3-aligned-dark.svg">
+<img alt="Aligned watermark at the slowest active source" src="docs/assets/a3-aligned-light.svg">
+</picture>
+</p>
+
+ Release by the fastest partition's clock and the slower partitions' events
 become late. `Aligned` holds the watermark at the minimum over the sources, leaves out a source that went quiet, and
 `Lag` names the one holding it back.
 
@@ -129,15 +173,7 @@ for _, ev := range b.Flush() { // end of input
 Install with `go get github.com/A-RYAN-1/event-order` (Go 1.23 or newer). The import path ends in `event-order`; the package
 is `eventorder`. To see it work first, clone the repository and run `go run ./examples/sensors`. Real output, 2026-10-27:
 
-```
-t+1s  21.3C
-t+2s  21.4C
-t+3s  21.5C
-t+4s  21.7C
-t+2s  21.4C (retry)  <- late
-t+9s  22.1C  (flushed)
-{Buffered:0 Released:5 Late:1 Peak:5 Watermark:2026-01-01 12:00:09 +0000 UTC}
-```
+<p align="center"><img alt="Terminal output of the sensors example" src="docs/assets/cli.svg"></p>
 
 Six readings arrive out of order and the retry is too late. Change `WithMaxDelay(3*time.Second)` to `10*time.Second` and
 the late one is in order.
@@ -183,6 +219,15 @@ events are held. Building it taught that the ordering is the smallest part: the 
 proving them against a model.
 
 ## How it works
+
+<p align="center">
+<picture>
+<source media="(prefers-color-scheme: dark)" srcset="docs/assets/overview-dark.svg">
+<img alt="How the pieces fit" src="docs/assets/overview-light.svg">
+</picture>
+</p>
+
+The same flow as a diagram GitHub can inspect:
 
 ```mermaid
 flowchart LR
@@ -244,6 +289,14 @@ happened, with a safe commit" should not need one. This library is the single wa
 checkpointing: it does not give exactly-once, and it does not replace a stream engine.
 
 ## Engineering quality and proof
+
+
+<p align="center">
+<picture>
+<source media="(prefers-color-scheme: dark)" srcset="docs/assets/bench-dark.svg">
+<img alt="Buffer.Add 131 ns against 1493 ns for sorting on every add" src="docs/assets/bench-light.svg">
+</picture>
+</p>
 
 Measured on Windows, amd64, Go 1.27.0, i5-13450HX: coverage and cost rows on 2026-10-27, the other rows on 2026-10-24. CI runs the same tests with `-race` on Linux, plus Windows and macOS.
 

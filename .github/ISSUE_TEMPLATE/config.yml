@@ -3,3 +3,6 @@ contact_links:
   - name: Security report
     url: https://github.com/A-RYAN-1/event-order/security/advisories/new
     about: Report vulnerabilities privately, not as a public issue.
+  - name: Question or idea
+    url: https://github.com/A-RYAN-1/event-order/discussions
+    about: Ask how to use the library or float an idea before opening an issue.
