@@ -4,6 +4,8 @@ All notable changes are listed here, newest first. The format follows [Keep a Ch
 
 ## [Unreleased]
 
+## [0.2.0] - not yet tagged (Phase 1 closed 2026-10-27)
+
 ### Added
 
 - `examples/watermill`: a Watermill router handler (`Reorderer`) that publishes in event-time order, with an idle drain; its own module, tested over the in-memory gochannel.
