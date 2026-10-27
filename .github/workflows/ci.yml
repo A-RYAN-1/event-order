@@ -26,7 +26,7 @@ jobs:
       - run: go test -run xxx -bench . -benchtime 1000x
       - name: example modules
         run: |
-          for d in examples/kafka examples/mqtt; do
+          for d in examples/kafka examples/mqtt examples/watermill; do
             (cd "$d" && go vet ./... && go test -race -count=1 ./...)
           done
       - run: go test -run xxx -fuzz FuzzTracker -fuzztime 15s
@@ -49,7 +49,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        dir: [".", examples/kafka, examples/mqtt]
+        dir: [".", examples/kafka, examples/mqtt, examples/watermill]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5

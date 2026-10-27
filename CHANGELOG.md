@@ -6,6 +6,8 @@ All notable changes are listed here, newest first. The format follows [Keep a Ch
 
 ### Added
 
+- `examples/watermill`: a Watermill router handler (`Reorderer`) that publishes in event-time order, with an idle drain; its own module, tested over the in-memory gochannel.
+- `scripts/bench.sh` and benchmarks for `Aligned` and `Stream`; README numbers come from its `-count 10` benchstat table.
 - `Stream.Skip` for messages finished without processing (undecodable payloads).
 - Real-broker integration tests (build tag `integration`): Kafka restart from committed offsets and a consumer-group rebalance against `apache/kafka`, MQTT ordering from several publishers against `eclipse-mosquitto`, both run in CI.
 - Kafka example uses `Stream` and an idle drain (`-idle`) so the last readings of a quiet topic are released.
