@@ -13,6 +13,7 @@ All notable changes are listed here, newest first. The format follows [Keep a Ch
 
 ### Changed
 
+- `Aligned.Lag` and the command's `run` split into smaller functions (cyclomatic complexity 22 and 16 down to 15 or less); behaviour unchanged, covered by the existing reference and property tests.
 - README with a logo, light and dark figures for the three gaps, the architecture, the benchmark and the example output; `scripts/gen_docs_assets.py` regenerates them. Discussions link in the issue chooser.
 
 ## [0.2.0] - not yet tagged (Phase 1 closed 2026-10-27)

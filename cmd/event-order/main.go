@@ -91,19 +91,9 @@ func openInputs(names []string, stdin io.Reader) (io.Reader, func(), error) {
 }
 
 func run(in io.Reader, out, errw io.Writer, c config) error {
-	if (c.field == "") == (c.col == 0) {
-		return fmt.Errorf("give exactly one of -field or -col")
-	}
-	if c.late != "drop" && c.late != "emit" && c.late != "stderr" {
-		return fmt.Errorf("-late must be drop, emit or stderr")
-	}
-	opts := []eventorder.Option{eventorder.WithMaxDelay(c.delay), eventorder.WithMaxBuffered(c.maxBuf)}
-	if c.late == "emit" {
-		opts = append(opts, eventorder.WithLatePolicy(eventorder.Emit))
-	}
-	b := eventorder.New[string](opts...)
-	if c.late == "stderr" {
-		b.OnLate(func(e eventorder.Event[string]) { _, _ = fmt.Fprintln(errw, e.Value) })
+	b, err := newBuffer(errw, c)
+	if err != nil {
+		return err
 	}
 
 	var bad int
@@ -145,6 +135,25 @@ func run(in io.Reader, out, errw io.Writer, c config) error {
 		_, _ = fmt.Fprintf(errw, "released %d, late %d, skipped %d, peak held %d\n", s.Released, s.Late, bad, s.Peak)
 	}
 	return nil
+}
+
+// newBuffer checks the flags and builds the Buffer they describe.
+func newBuffer(errw io.Writer, c config) (*eventorder.Buffer[string], error) {
+	if (c.field == "") == (c.col == 0) {
+		return nil, fmt.Errorf("give exactly one of -field or -col")
+	}
+	if c.late != "drop" && c.late != "emit" && c.late != "stderr" {
+		return nil, fmt.Errorf("-late must be drop, emit or stderr")
+	}
+	opts := []eventorder.Option{eventorder.WithMaxDelay(c.delay), eventorder.WithMaxBuffered(c.maxBuf)}
+	if c.late == "emit" {
+		opts = append(opts, eventorder.WithLatePolicy(eventorder.Emit))
+	}
+	b := eventorder.New[string](opts...)
+	if c.late == "stderr" {
+		b.OnLate(func(e eventorder.Event[string]) { _, _ = fmt.Fprintln(errw, e.Value) })
+	}
+	return b, nil
 }
 
 func lineTime(line string, c config) (time.Time, error) {
