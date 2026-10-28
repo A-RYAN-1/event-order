@@ -16,6 +16,7 @@ jobs:
         with:
           sync-labels: true
   size:
+    needs: labeler # the labeler rewrites the label set, so the size label goes on after it
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
