@@ -31,7 +31,7 @@ Zero dependencies, bounded memory, one import: no cluster to run.
 </picture>
 </p>
 
-<p align="center"><sub>Status: v0.x, the API may change between minor versions. Last updated: 2026-10-27. Private until the first public release.</sub></p>
+<p align="center"><sub>Status: v0.x, the API may change between minor versions. Last updated: 2026-10-28. Public, no release tagged yet.</sub></p>
 
 ---
 
@@ -385,7 +385,7 @@ renders it from the tag. CI runs on Linux, Windows and macOS, and a release work
 
 ## Status and roadmap
 
-Private, v0.x, last checked 2026-10-27. Aligned, Stream, real-broker tests, the Watermill example and the benchmark
+Public since 2026-10-28, v0.x (no release tagged yet), last checked 2026-10-28. Aligned, Stream, real-broker tests, the Watermill example and the benchmark
 script are merged; the changelog carries an untagged 0.2.0 entry.
 
 Known limitations: see [Limits](#limits).
@@ -396,7 +396,7 @@ Planned:
 - [ ] Codecov, Go Report Card and the OpenSSF Best Practices badge
 - [x] Bots, releases and repository settings for the public flip (labels, stale, DCO, GoReleaser, `scripts/apply-settings.sh`)
 - [x] Community files: [support](SUPPORT.md), [governance](GOVERNANCE.md), [architecture](ARCHITECTURE.md), [FAQ](docs/FAQ.md)
-- [ ] v0.3 contributor issues: Watermill middleware, Redis Streams example, OpenTelemetry adapter in a separate module,
+- [x] v0.3 contributor issues (milestone v0.3, open to everyone): Watermill middleware, Redis Streams example, OpenTelemetry adapter in a separate module,
       the A4 sequencer (ordering by sequence number), more benchmarks, docs
 - [ ] First tagged release and pkg.go.dev page (the maintainer decides when)
 
