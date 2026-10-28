@@ -1,0 +1,62 @@
+name: pr-meta
+# Labels, size label and title check. pull_request_target gives fork PRs a token
+# that can write labels; nothing here checks out or runs the PR's code.
+on:
+  pull_request_target:
+    types: [opened, edited, synchronize, reopened]
+permissions: {}
+jobs:
+  labeler:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/labeler@v5
+        with:
+          sync-labels: true
+  size:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              ...context.repo, pull_number: pr.number, per_page: 100,
+            });
+            const n = files
+              .filter(f => !/(^|\/)go\.sum$|\.svg$|\.png$/.test(f.filename))
+              .reduce((s, f) => s + f.additions + f.deletions, 0);
+            const size = n < 10 ? 'XS' : n < 50 ? 'S' : n < 250 ? 'M' : n < 1000 ? 'L' : 'XL';
+            const want = `size/${size}`;
+            const have = pr.labels.map(l => l.name).filter(l => l.startsWith('size/'));
+            for (const l of have.filter(l => l !== want)) {
+              await github.rest.issues.removeLabel({ ...context.repo, issue_number: pr.number, name: l });
+            }
+            if (!have.includes(want)) {
+              await github.rest.issues.addLabels({ ...context.repo, issue_number: pr.number, labels: [want] });
+            }
+  title:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    steps:
+      - uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            docs
+            test
+            perf
+            refactor
+            build
+            ci
+            chore
+            deps
+          requireScope: false

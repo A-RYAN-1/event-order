@@ -1,0 +1,21 @@
+docs:
+  - changed-files:
+      - any-glob-to-any-file: ["**/*.md", "docs/**"]
+ci:
+  - changed-files:
+      - any-glob-to-any-file: [".github/**", ".golangci.yml", ".goreleaser.yaml"]
+tests:
+  - changed-files:
+      - any-glob-to-any-file: ["**/*_test.go"]
+examples:
+  - changed-files:
+      - any-glob-to-any-file: ["examples/**"]
+cli:
+  - changed-files:
+      - any-glob-to-any-file: ["cmd/**"]
+core:
+  - changed-files:
+      - any-glob-to-any-file: ["*.go", "!*_test.go"]
+dependencies:
+  - changed-files:
+      - any-glob-to-any-file: ["go.mod", "go.sum", "**/go.mod", "**/go.sum"]

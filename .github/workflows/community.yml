@@ -1,0 +1,51 @@
+name: community
+on:
+  issues:
+    types: [opened]
+  pull_request_target:
+    types: [opened]
+  schedule:
+    - cron: "17 3 * * *"
+permissions: {}
+jobs:
+  welcome:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/first-interaction@v1
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          issue-message: >
+            Thanks for opening your first issue. A short reproduction or the sequence of
+            events (key, event time, arrival order) helps most. The maintainer replies
+            within a few days.
+          pr-message: >
+            Thanks for your first pull request. CI runs tests, lint and a DCO check
+            (commits need a Signed-off-by line: `git commit -s`). See CONTRIBUTING.md
+            for what a review looks at.
+  stale:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/stale@v9
+        with:
+          days-before-stale: 60
+          days-before-close: 14
+          stale-issue-label: stale
+          stale-pr-label: stale
+          exempt-issue-labels: "pinned,good first issue,help wanted,security,roadmap"
+          exempt-pr-labels: "pinned,security"
+          stale-issue-message: >
+            This has had no activity for 60 days. If it still matters, leave a comment and
+            it stays open; otherwise it closes in 14 days. Reopening later is fine.
+          stale-pr-message: >
+            No activity for 60 days. Comment or push to keep this open; it closes in 14
+            days otherwise, and you can reopen it any time.
+          close-issue-message: Closed for inactivity. Reopen it if it comes back.
+          close-pr-message: Closed for inactivity. Reopen it when you pick it up again.
