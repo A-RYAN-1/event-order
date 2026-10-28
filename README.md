@@ -401,7 +401,7 @@ Planned:
 - [x] Community files: [support](SUPPORT.md), [governance](GOVERNANCE.md), [architecture](ARCHITECTURE.md), [FAQ](docs/FAQ.md)
 - [x] v0.3 contributor issues (milestone v0.3, open to everyone): Watermill middleware, Redis Streams example, OpenTelemetry adapter in a separate module,
       the A4 sequencer (ordering by sequence number), more benchmarks, docs
-- [ ] First tagged release and pkg.go.dev page (the maintainer decides when)
+- [x] First tagged release (v0.2.0, 2026-10-28) and pkg.go.dev page
 
 ## Contributing
 
