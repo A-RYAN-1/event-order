@@ -18,6 +18,7 @@ Zero dependencies, bounded memory, one import: no cluster to run.
 
 <p align="center">
 <a href="https://github.com/A-RYAN-1/event-order/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/A-RYAN-1/event-order/actions/workflows/ci.yml/badge.svg"></a>
+<a href="https://codecov.io/gh/A-RYAN-1/event-order"><img alt="Coverage" src="https://codecov.io/gh/A-RYAN-1/event-order/graph/badge.svg"></a>
 <a href="https://pkg.go.dev/github.com/A-RYAN-1/event-order"><img alt="Go Reference" src="https://pkg.go.dev/badge/github.com/A-RYAN-1/event-order.svg"></a>
 <img alt="Go version" src="https://img.shields.io/github/go-mod/go-version/A-RYAN-1/event-order">
 <img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue.svg">
@@ -31,7 +32,7 @@ Zero dependencies, bounded memory, one import: no cluster to run.
 </picture>
 </p>
 
-<p align="center"><sub>Status: v0.x, the API may change between minor versions. Last updated: 2026-10-27. Private until the first public release.</sub></p>
+<p align="center"><sub>Status: v0.x, the API may change between minor versions. Last updated: 2026-10-28. Public, no release tagged yet.</sub></p>
 
 ---
 
@@ -385,7 +386,7 @@ renders it from the tag. CI runs on Linux, Windows and macOS, and a release work
 
 ## Status and roadmap
 
-Private, v0.x, last checked 2026-10-27. Aligned, Stream, real-broker tests, the Watermill example and the benchmark
+Public since 2026-10-28, v0.x (no release tagged yet), last checked 2026-10-28. Aligned, Stream, real-broker tests, the Watermill example and the benchmark
 script are merged; the changelog carries an untagged 0.2.0 entry.
 
 Known limitations: see [Limits](#limits).
@@ -393,10 +394,11 @@ Known limitations: see [Limits](#limits).
 Planned:
 
 - [x] govulncheck and a coverage floor in CI; CodeQL and OpenSSF Scorecard are in place and start when the repository is public
-- [ ] Codecov, Go Report Card and the OpenSSF Best Practices badge
+- [x] Codecov (Go Report Card shut down in 2026; golangci-lint in CI covers the same checks)
+- [ ] OpenSSF Best Practices badge
 - [x] Bots, releases and repository settings for the public flip (labels, stale, DCO, GoReleaser, `scripts/apply-settings.sh`)
 - [x] Community files: [support](SUPPORT.md), [governance](GOVERNANCE.md), [architecture](ARCHITECTURE.md), [FAQ](docs/FAQ.md)
-- [ ] v0.3 contributor issues: Watermill middleware, Redis Streams example, OpenTelemetry adapter in a separate module,
+- [x] v0.3 contributor issues (milestone v0.3, open to everyone): Watermill middleware, Redis Streams example, OpenTelemetry adapter in a separate module,
       the A4 sequencer (ordering by sequence number), more benchmarks, docs
 - [ ] First tagged release and pkg.go.dev page (the maintainer decides when)
 

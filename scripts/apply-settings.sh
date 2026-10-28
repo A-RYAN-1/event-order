@@ -15,9 +15,9 @@ call() { # method path [json-file]
   local m=$1 p=$2 f=${3:-}
   if [ "$apply" != --apply ]; then echo "DRY  $m $p ${f:+< $f}"; return 0; fi
   if [ -n "$f" ]; then
-    gh api -X "$m" "repos/$repo/$p" --input "$f" >/dev/null
+    gh api -X "$m" "repos/$repo${p:+/$p}" --input "$f" >/dev/null
   else
-    gh api -X "$m" "repos/$repo/$p" >/dev/null
+    gh api -X "$m" "repos/$repo${p:+/$p}" >/dev/null
   fi && echo "OK   $m $p" || { echo "FAIL $m $p"; fail=1; }
 }
 json() { printf '%s' "$2" >"$tmp/$1.json"; echo "$tmp/$1.json"; }
