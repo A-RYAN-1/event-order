@@ -4,6 +4,10 @@ All notable changes are listed here, newest first. The format follows [Keep a Ch
 
 ## [Unreleased]
 
+### Added
+
+- Repository bots: PR labels by path and size, Conventional Commits title check, first-time contributor welcome, stale nudge (60 days, then 14 before close; roadmap and good first issues exempt), DCO sign-off check, all-contributors config.
+
 ### Changed
 
 - README with a logo, light and dark figures for the three gaps, the architecture, the benchmark and the example output; `scripts/gen_docs_assets.py` regenerates them. Discussions link in the issue chooser.

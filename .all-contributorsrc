@@ -1,0 +1,12 @@
+{
+  "projectName": "event-order",
+  "projectOwner": "A-RYAN-1",
+  "repoType": "github",
+  "repoHost": "https://github.com",
+  "files": ["CONTRIBUTORS.md"],
+  "imageSize": 64,
+  "commit": false,
+  "commitConvention": "none",
+  "contributorsPerLine": 7,
+  "contributors": []
+}
