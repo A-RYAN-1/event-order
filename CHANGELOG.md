@@ -4,6 +4,12 @@ All notable changes are listed here, newest first. The format follows [Keep a Ch
 
 ## [Unreleased]
 
+### Added
+
+- Releases with GoReleaser (command binaries for Linux, macOS and Windows, zip and tar.gz, checksums); the release notes are the matching CHANGELOG section, and a tag must be on `main`. A snapshot build runs on pull requests that touch it.
+- `scripts/apply-settings.sh` and `.github/rulesets/`: branch and tag rulesets and repository settings applied with `gh api` (dry run by default).
+- `ARCHITECTURE.md`, `GOVERNANCE.md`, `SUPPORT.md` and `docs/FAQ.md`.
+
 ### Changed
 
 - README with a logo, light and dark figures for the three gaps, the architecture, the benchmark and the example output; `scripts/gen_docs_assets.py` regenerates them. Discussions link in the issue chooser.
