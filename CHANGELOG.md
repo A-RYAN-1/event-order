@@ -4,22 +4,14 @@ All notable changes are listed here, newest first. The format follows [Keep a Ch
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-28
+
 ### Added
 
 - Releases with GoReleaser (command binaries for Linux, macOS and Windows, zip and tar.gz, checksums); the release notes are the matching CHANGELOG section, and a tag must be on `main`. A snapshot build runs on pull requests that touch it.
 - `scripts/apply-settings.sh` and `.github/rulesets/`: branch and tag rulesets and repository settings applied with `gh api` (dry run by default).
 - `ARCHITECTURE.md`, `GOVERNANCE.md`, `SUPPORT.md` and `docs/FAQ.md`.
 - Repository bots: PR labels by path and size, Conventional Commits title check, first-time contributor welcome, stale nudge (60 days, then 14 before close; roadmap and good first issues exempt), DCO sign-off check, all-contributors config.
-
-### Changed
-
-- `Aligned.Lag` and the command's `run` split into smaller functions (cyclomatic complexity 22 and 16 down to 15 or less); behaviour unchanged, covered by the existing reference and property tests.
-- README with a logo, light and dark figures for the three gaps, the architecture, the benchmark and the example output; `scripts/gen_docs_assets.py` regenerates them. Discussions link in the issue chooser.
-
-## [0.2.0] - not yet tagged (Phase 1 closed 2026-10-27)
-
-### Added
-
 - `examples/watermill`: a Watermill router handler (`Reorderer`) that publishes in event-time order, with an idle drain; its own module, tested over the in-memory gochannel.
 - `scripts/bench.sh` and benchmarks for `Aligned` and `Stream`; README numbers come from its `-count 10` benchstat table.
 - `Stream.Skip` for messages finished without processing (undecodable payloads).
@@ -45,6 +37,8 @@ All notable changes are listed here, newest first. The format follows [Keep a Ch
 
 ### Changed
 
+- `Aligned.Lag` and the command's `run` split into smaller functions (cyclomatic complexity 22 and 16 down to 15 or less); behaviour unchanged, covered by the existing reference and property tests.
+- README with a logo, light and dark figures for the three gaps, the architecture, the benchmark and the example output; `scripts/gen_docs_assets.py` regenerates them. Discussions link in the issue chooser.
 - The heap is typed, so `Add` makes no allocation once the output slice has grown (previously 2 per call).
 - Module path is `github.com/A-RYAN-1/event-order`; the package name stays `eventorder`.
 
