@@ -40,6 +40,12 @@ jobs:
         with:
           name: coverage
           path: coverage.out
+      # Codecov shows the trend and comments on pull requests; the 95 percent floor above stays the gate.
+      - uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage.out
+          fail_ci_if_error: false
   # CodeQL and Scorecard need a public repository (code scanning on a private
   # one is a paid feature), so both skip themselves until the visibility flip.
   codeql:
