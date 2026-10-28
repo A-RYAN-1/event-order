@@ -394,8 +394,8 @@ Planned:
 
 - [x] govulncheck and a coverage floor in CI; CodeQL and OpenSSF Scorecard are in place and start when the repository is public
 - [ ] Codecov, Go Report Card and the OpenSSF Best Practices badge
-- [ ] Bots, releases and repository settings for the public flip (stale, labeler, release notes, branch rules)
-- [ ] Community files: support, governance, architecture notes
+- [x] Bots, releases and repository settings for the public flip (labels, stale, DCO, GoReleaser, `scripts/apply-settings.sh`)
+- [x] Community files: [support](SUPPORT.md), [governance](GOVERNANCE.md), [architecture](ARCHITECTURE.md), [FAQ](docs/FAQ.md)
 - [ ] v0.3 contributor issues: Watermill middleware, Redis Streams example, OpenTelemetry adapter in a separate module,
       the A4 sequencer (ordering by sequence number), more benchmarks, docs
 - [ ] First tagged release and pkg.go.dev page (the maintainer decides when)
