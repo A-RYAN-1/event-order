@@ -9,6 +9,7 @@ All notable changes are listed here, newest first. The format follows [Keep a Ch
 - Releases with GoReleaser (command binaries for Linux, macOS and Windows, zip and tar.gz, checksums); the release notes are the matching CHANGELOG section, and a tag must be on `main`. A snapshot build runs on pull requests that touch it.
 - `scripts/apply-settings.sh` and `.github/rulesets/`: branch and tag rulesets and repository settings applied with `gh api` (dry run by default).
 - `ARCHITECTURE.md`, `GOVERNANCE.md`, `SUPPORT.md` and `docs/FAQ.md`.
+- Repository bots: PR labels by path and size, Conventional Commits title check, first-time contributor welcome, stale nudge (60 days, then 14 before close; roadmap and good first issues exempt), DCO sign-off check, all-contributors config.
 
 ### Changed
 
