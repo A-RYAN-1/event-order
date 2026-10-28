@@ -1,21 +1,30 @@
-docs:
+documentation:
   - changed-files:
       - any-glob-to-any-file: ["**/*.md", "docs/**"]
-ci:
+"area: ci":
   - changed-files:
       - any-glob-to-any-file: [".github/**", ".golangci.yml", ".goreleaser.yaml"]
-tests:
+proof:
   - changed-files:
       - any-glob-to-any-file: ["**/*_test.go"]
-examples:
+"area: examples":
   - changed-files:
       - any-glob-to-any-file: ["examples/**"]
-cli:
+"area: cli":
   - changed-files:
       - any-glob-to-any-file: ["cmd/**"]
-core:
+"area: buffer":
   - changed-files:
-      - any-glob-to-any-file: ["*.go", "!*_test.go"]
+      - any-glob-to-any-file: ["buffer.go", "keyed.go", "safe.go", "pipe.go", "reorder.go", "merge.go", "strategy.go"]
+"area: tracker":
+  - changed-files:
+      - any-glob-to-any-file: ["tracker.go", "stream.go"]
+"area: dedup":
+  - changed-files:
+      - any-glob-to-any-file: ["dedup.go"]
+"area: aligned":
+  - changed-files:
+      - any-glob-to-any-file: ["aligned.go"]
 dependencies:
   - changed-files:
       - any-glob-to-any-file: ["go.mod", "go.sum", "**/go.mod", "**/go.sum"]
