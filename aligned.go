@@ -164,23 +164,7 @@ func (a *Aligned[S]) Lag() []SourceStatus[S] {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	now := a.now()
-	var newest, min time.Time
-	var haveNewest, haveMin, blocked bool
-	for _, s := range a.sources {
-		if !a.active(s, now) {
-			continue
-		}
-		if !s.has {
-			blocked = true
-			continue
-		}
-		if !haveNewest || s.wm.After(newest) {
-			newest, haveNewest = s.wm, true
-		}
-		if !haveMin || s.wm.Before(min) {
-			min, haveMin = s.wm, true
-		}
-	}
+	newest, min, blocked := a.bounds(now)
 	type row struct {
 		st  SourceStatus[S]
 		seq uint64
@@ -199,34 +183,66 @@ func (a *Aligned[S]) Lag() []SourceStatus[S] {
 		rows = append(rows, row{st, s.seq})
 	}
 	slices.SortFunc(rows, func(x, y row) int {
-		if x.st.Holding != y.st.Holding {
-			if x.st.Holding {
-				return -1
-			}
-			return 1
-		}
-		if x.st.Reported != y.st.Reported {
-			if !x.st.Reported {
-				return -1
-			}
-			return 1
-		}
-		if c := x.st.Watermark.Compare(y.st.Watermark); c != 0 {
+		if c := lagOrder(x.st, y.st); c != 0 {
 			return c
 		}
-		switch {
-		case x.seq < y.seq:
-			return -1
-		case x.seq > y.seq:
-			return 1
-		}
-		return 0
+		return cmpSeq(x.seq, y.seq)
 	})
 	out := make([]SourceStatus[S], len(rows))
 	for i, r := range rows {
 		out[i] = r.st
 	}
 	return out
+}
+
+// bounds returns the newest and the lowest watermark among the active sources
+// that have reported, and whether an active source has not reported yet.
+func (a *Aligned[S]) bounds(now time.Time) (newest, min time.Time, blocked bool) {
+	var haveNewest, haveMin bool
+	for _, s := range a.sources {
+		if !a.active(s, now) {
+			continue
+		}
+		if !s.has {
+			blocked = true
+			continue
+		}
+		if !haveNewest || s.wm.After(newest) {
+			newest, haveNewest = s.wm, true
+		}
+		if !haveMin || s.wm.Before(min) {
+			min, haveMin = s.wm, true
+		}
+	}
+	return newest, min, blocked
+}
+
+// lagOrder puts the sources holding the watermark back first, then the ones
+// that have not reported, then by watermark from lowest to highest.
+func lagOrder[S comparable](x, y SourceStatus[S]) int {
+	if x.Holding != y.Holding {
+		if x.Holding {
+			return -1
+		}
+		return 1
+	}
+	if x.Reported != y.Reported {
+		if !x.Reported {
+			return -1
+		}
+		return 1
+	}
+	return x.Watermark.Compare(y.Watermark)
+}
+
+func cmpSeq(x, y uint64) int {
+	switch {
+	case x < y:
+		return -1
+	case x > y:
+		return 1
+	}
+	return 0
 }
 
 func (a *Aligned[S]) get(src S) *alignedSource {
