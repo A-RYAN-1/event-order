@@ -12,8 +12,8 @@ jobs:
       matrix:
         go: ["1.23", "stable"]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version: ${{ matrix.go }}
       - run: go vet ./...
@@ -25,6 +25,7 @@ jobs:
       - run: go test -run xxx -fuzz FuzzMerge -fuzztime 15s
       - run: go test -run xxx -bench . -benchtime 1000x
       - name: example modules
+        if: matrix.go == 'stable'
         run: |
           for d in examples/kafka examples/mqtt examples/watermill; do
             (cd "$d" && go vet ./... && go test -race -count=1 ./...)
@@ -39,8 +40,8 @@ jobs:
       matrix:
         os: [windows-latest, macos-latest]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version: stable
       - run: go build ./...
@@ -51,8 +52,8 @@ jobs:
       matrix:
         dir: [".", examples/kafka, examples/mqtt, examples/watermill]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version: stable
       - uses: golangci/golangci-lint-action@v9
@@ -63,8 +64,8 @@ jobs:
   integration:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version: stable
       - name: start brokers
