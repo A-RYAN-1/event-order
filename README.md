@@ -192,6 +192,7 @@ the late one is in order.
 | One watermark over several sources | `Aligned`: minimum of the source watermarks, idle sources excluded, `Lag` names the holder |
 | Several ordered sources | `Merge` over `iter.Seq`; `Reorder` wraps one `iter.Seq` |
 | A broker that needs commits | `Tracker`, `KeyedTracker`: the offset that is safe to commit while events are held, `Revoke` for rebalances |
+| Items numbered by the producer | `Sequencer`: releases by sequence number with no delay, waits for a missing number inside a window, reports gaps it gives up on |
 | An at-least-once source | `Dedup`: drops repeated ids inside a bounded window of event time |
 | A log or CSV in a shell | the `event-order` command, streaming (see [Command line](#command-line)) |
 
@@ -206,6 +207,7 @@ the late one is in order.
 - **Per-key buffers** (`Keyed`) that forget idle keys, and goroutine-safe wrappers (`Safe`, `SafeKeyed`, `Pipe`).
 - **Safe commit offsets** (`Tracker`, `KeyedTracker`) with `Revoke` for rebalances.
 - **Bounded duplicate window** (`Dedup`).
+- **Sequence-number ordering** (`Sequencer`): exact order without a delay, a bounded wait for gaps, `OnGap` and `OnStale` for what never fills.
 - **Aligned watermark** (`Aligned`) over several sources, with idle handling and a lag report.
 - **Consumer glue** (`Stream`): `Ingest`, `Done`, `Commit`, `Skip`, `Revoke`, `Flush`, `AdvanceAll`, `Watermark`, `Stats`.
 - **A command line** that sorts a JSON-lines log or CSV as a stream.
@@ -387,7 +389,7 @@ renders it from the tag. CI runs on Linux, Windows and macOS, and a release work
 
 ## Status and roadmap
 
-Public since 2026-10-28, v0.x (no release tagged yet), last checked 2026-10-28. Aligned, Stream, real-broker tests, the Watermill example and the benchmark
+Public since 2026-10-28, v0.2.0 tagged 2026-10-28, last checked 2026-11-03. Aligned, Stream, real-broker tests, the Watermill example and the benchmark
 script are merged; the changelog carries an untagged 0.2.0 entry.
 
 Known limitations: see [Limits](#limits).

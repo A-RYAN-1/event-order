@@ -34,6 +34,7 @@ jobs:
       - run: go test -run xxx -fuzz FuzzDedup -fuzztime 15s
       - run: go test -run xxx -fuzz FuzzAligned -fuzztime 15s
       - run: go test -run xxx -fuzz FuzzStream -fuzztime 15s
+      - run: go test -run xxx -fuzz FuzzSequencer -fuzztime 15s
   portable:
     runs-on: ${{ matrix.os }}
     strategy:

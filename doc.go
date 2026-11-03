@@ -24,6 +24,8 @@
 //     right order, see Consumer glue.
 //   - Aligned turns the watermarks of several sources into one safe watermark,
 //     see Several sources.
+//   - Sequencer orders by a sequence number the producer attaches instead of
+//     event time, see Sequence numbers.
 //
 // Buffer and Keyed are not safe for concurrent use; serialise calls with a
 // mutex or a single goroutine, or use Safe, SafeKeyed or Pipe.
@@ -92,6 +94,17 @@
 // everything back, so mark it Idle or set WithSourceIdleTimeout; Lag names the
 // source that is holding the watermark. The combined watermark never moves
 // back, so a source that rejoins behind it only has late events of its own.
+//
+// # Sequence numbers
+//
+// When the producer numbers its items (a per-key counter, a log index), order
+// by the number instead of the clock: Sequencer releases an item as soon as
+// every lower number has been released, with no delay. The window passed to
+// NewSequencer bounds how long a missing number is waited for, counted in
+// numbers: an item window or more ahead gives up on the oldest gap, reported
+// once to OnGap. Skip gives up on the current gap from a timer, and an item
+// whose number was already released or given up on is stale (OnStale). Keep
+// one Sequencer per key.
 //
 // # Compared with a stream processor
 //
