@@ -32,6 +32,7 @@ type options struct {
 	policy   LatePolicy
 	idle     time.Duration
 	strategy func() DelayStrategy
+	stats    func(Stats)
 }
 
 // WithMaxDelay sets how far out of order events may arrive. Larger values
@@ -59,6 +60,15 @@ func WithLatePolicy(p LatePolicy) Option {
 // Keyed ignore it: they have no clock, drive them with AdvanceTo.
 func WithIdleTimeout(d time.Duration) Option {
 	return func(o *options) { o.idle = d }
+}
+
+// WithStatsFunc makes Pipe call f once with the final Stats when its output
+// closes, whether the input ended or the context was cancelled. The call
+// happens before the output channel closes, so the caller can read what f
+// stored as soon as its range over the output finishes. f runs on the Pipe
+// goroutine; keep it short. Buffer and Keyed ignore it: read Stats directly.
+func WithStatsFunc(f func(Stats)) Option {
+	return func(o *options) { o.stats = f }
 }
 
 // Stats is a snapshot of a Buffer's counters.

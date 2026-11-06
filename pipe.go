@@ -9,7 +9,8 @@ import (
 // order on the returned channel. When in is closed, what is still held is
 // flushed in order and the output closes. When ctx is cancelled the output
 // closes at once and held events are discarded. With WithIdleTimeout, a source
-// that stays quiet for that long has everything it holds released.
+// that stays quiet for that long has everything it holds released. With
+// WithStatsFunc, the final Stats are reported just before the output closes.
 //
 // The caller must drain the returned channel or cancel ctx; the goroutine
 // stops when either happens.
@@ -19,6 +20,10 @@ func Pipe[T any](ctx context.Context, in <-chan Event[T], opts ...Option) <-chan
 	idle := b.opt.idle
 	go func() {
 		defer close(out)
+		if f := b.opt.stats; f != nil {
+			// Deferred after close(out), so it runs first.
+			defer func() { f(b.Stats()) }()
+		}
 		send := func(evs []Event[T]) bool {
 			for _, e := range evs {
 				select {
