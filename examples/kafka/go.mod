@@ -1,6 +1,6 @@
 module github.com/A-RYAN-1/event-order/examples/kafka
 
-go 1.23
+go 1.25
 
 replace github.com/A-RYAN-1/event-order => ../..
 
@@ -10,6 +10,6 @@ require (
 )
 
 require (
-	github.com/klauspost/compress v1.15.9 // indirect
+	github.com/klauspost/compress v1.20.2 // indirect
 	github.com/pierrec/lz4/v4 v4.1.15 // indirect
 )
