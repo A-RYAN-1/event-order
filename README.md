@@ -309,7 +309,7 @@ Measured on Windows, amd64, Go 1.27.0, i5-13450HX: coverage and cost rows on 202
 | Statement coverage | 97.4 percent on 2026-10-27 (`go test -cover .`); CI fails under 95 percent |
 | Reference-model property tests | 3,000 random operation sequences for `Buffer`, 1,000 for `Keyed`, 2,000 each for `Tracker` and `Dedup`, output identical to a sort-every-step reference, call for call |
 | Crash safety | 300 random runs of `Buffer` plus `Tracker`: the commit offset never passes an unprocessed event |
-| Mutation check | removing the boundary nanosecond, the arrival tie-break, the head advance of `Tracker`, the expiry bound or the cap of `Dedup` each fails tests |
+| Mutation check | `scripts/mutate.sh` applies 13 one-line mutations (the boundary nanosecond, the arrival tie-break, the head advance of `Tracker`, the expiry bound and cap of `Dedup`, the idle timeout of `Aligned`) one at a time: 13 killed, 0 survived on 2026-11-06 in about 80 s; a weekly workflow runs it |
 | Fuzz | `FuzzKeyed` 857,827 executions, `FuzzMerge` 45,326, `FuzzTracker` 3,852,990, `FuzzDedup` 3,684,370, no failure |
 | Memory | about 100 bytes per held event; `Len` never above the cap over 200,000 adds; `Dedup` holds about window-many ids |
 | Cost per call | median of 10 runs, 0 allocations each: `Buffer.Add` 105 ns (jitter 16) and 131 ns (jitter 256); `Aligned.Observe` 109 ns; `Stream.Ingest` 230 ns; `Tracker` Track plus Done plus Commit 50 ns; `Dedup.Seen` 237 ns. Run-to-run spread is 1 to 5 percent for the first four rows and 31 to 75 percent for `Tracker` and `Dedup` on this laptop, so read those two as rough |

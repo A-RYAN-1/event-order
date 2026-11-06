@@ -6,6 +6,7 @@ All notable changes are listed here, newest first. The format follows [Keep a Ch
 
 ### Added
 
+- `scripts/mutate.sh`: applies 13 documented one-line mutations across `buffer.go`, `tracker.go`, `dedup.go` and `aligned.go` one at a time, restores the file after each (also on interrupt) and fails if any mutation survives; a weekly `mutation` workflow runs it (#34).
 - `event-order -late-file PATH`: appends every late line to a file as a dead-letter log, alongside any `-late` policy; a path that cannot be opened stops the run with exit status 2 (#31).
 - `WithStatsFunc`: `Pipe` calls it once with the final `Stats` (late count, peak, released) before its output closes, after a flush or a context cancel (#33).
 - `Sequencer`: releases items in the order of a sequence number the producer attaches, with no delay. A missing number is waited for inside a window counted in numbers; an item beyond the window gives up on the oldest gap, `Skip` gives up from a timer, and each run of numbers given up on is reported once to `OnGap` and counted in `SeqStats`. Repeats of a held number and items behind the next expected number (`OnStale`) are dropped and counted. Memory is bounded by the window. Proof: reference model over 3,000 random sequences, an every-number-accounted-for property test, `FuzzSequencer`, a memory-bound test over 2,000,000 items, six mutations killed. About 6 ns per `Add` with no allocation (#26).
