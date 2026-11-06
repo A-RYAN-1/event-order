@@ -145,3 +145,54 @@ func TestKeyedAdvanceAllForgetsEmptyKeys(t *testing.T) {
 	}
 	k.OnLate(nil)
 }
+
+func TestPipeStatsFuncAfterFlush(t *testing.T) {
+	base := time.Unix(1_700_000_000, 0)
+	in := make(chan Event[int])
+	var got Stats
+	calls := 0
+	out := Pipe(context.Background(), in, WithMaxDelay(time.Second),
+		WithStatsFunc(func(s Stats) { got = s; calls++ }))
+	go func() {
+		for _, off := range []int{10, 20, 1} { // the last one is late
+			in <- Event[int]{Time: base.Add(time.Duration(off) * time.Second), Value: off}
+		}
+		close(in)
+	}()
+	n := 0
+	for range out {
+		n++
+	}
+	if calls != 1 {
+		t.Fatalf("callback ran %d times, want 1", calls)
+	}
+	if got.Late != 1 || got.Released != 2 || got.Buffered != 0 || got.Peak < 1 {
+		t.Fatalf("stats = %+v, want Late 1, Released 2, Buffered 0 (n=%d)", got, n)
+	}
+}
+
+func TestPipeStatsFuncAfterCancel(t *testing.T) {
+	base := time.Unix(1_700_000_000, 0)
+	in := make(chan Event[int])
+	ctx, cancel := context.WithCancel(context.Background())
+	var got Stats
+	calls := 0
+	out := Pipe(ctx, in, WithMaxDelay(time.Hour),
+		WithStatsFunc(func(s Stats) { got = s; calls++ }))
+	in <- Event[int]{Time: base, Value: 1}
+	in <- Event[int]{Time: base.Add(time.Second), Value: 2}
+	cancel()
+	for range out {
+	}
+	if calls != 1 || got.Buffered != 2 || got.Peak != 2 {
+		t.Fatalf("calls %d stats %+v, want one call with 2 held", calls, got)
+	}
+}
+
+func TestPipeWithoutStatsFuncUnchanged(t *testing.T) {
+	in := make(chan Event[int])
+	out := Pipe(context.Background(), in)
+	close(in)
+	for range out {
+	}
+}
