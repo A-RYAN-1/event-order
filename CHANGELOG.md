@@ -4,6 +4,10 @@ All notable changes are listed here, newest first. The format follows [Keep a Ch
 
 ## [Unreleased]
 
+### Added
+
+- `Sequencer`: releases items in the order of a sequence number the producer attaches, with no delay. A missing number is waited for inside a window counted in numbers; an item beyond the window gives up on the oldest gap, `Skip` gives up from a timer, and each run of numbers given up on is reported once to `OnGap` and counted in `SeqStats`. Repeats of a held number and items behind the next expected number (`OnStale`) are dropped and counted. Memory is bounded by the window. Proof: reference model over 3,000 random sequences, an every-number-accounted-for property test, `FuzzSequencer`, a memory-bound test over 2,000,000 items, six mutations killed. About 6 ns per `Add` with no allocation (#26).
+
 ## [0.2.0] - 2026-10-28
 
 ### Added

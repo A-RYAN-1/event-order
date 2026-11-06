@@ -19,6 +19,7 @@ Events carry an event time. A **watermark** is the largest event time seen minus
 | `tracker.go` | `Tracker`, `KeyedTracker` | The broker offset that is safe to commit while events are held: the lowest offset not yet done. `Revoke` forgets a partition on rebalance. |
 | `dedup.go` | `Dedup` | A bounded window of seen ids, measured in event time, with an optional cap. |
 | `aligned.go` | `Aligned` | One watermark over several sources: the minimum of the source watermarks, idle sources left out, never moving back. |
+| `sequencer.go` | `Sequencer` | Orders by a producer sequence number instead of event time: a ring of slots from the next expected number, a bounded window to wait for a missing number, gaps given up on reported once. |
 | `stream.go` | `Stream` | The consumer glue: `Dedup`, then `Keyed`, with a `KeyedTracker` behind them, in the order that is correct by construction. |
 | `cmd/event-order` | command | Sorts JSON or delimited lines from stdin or a file with a bounded delay. |
 
