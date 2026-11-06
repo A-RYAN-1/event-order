@@ -360,7 +360,7 @@ event-order -col 1 -sep , -delay 1m events.csv > sorted.csv  # CSV, first column
 ```
 
 Times may be RFC 3339, Unix seconds or Unix milliseconds. Late lines are dropped, printed in place (`-late emit`) or sent to
-stderr (`-late stderr`); `-max-buffered N` caps memory; `-stats` prints counters. Measured 2026-10-23 on a 95 MB,
+stderr (`-late stderr`); `-late-file PATH` appends every late line to a file as a dead-letter log, whatever `-late` is; `-max-buffered N` caps memory; `-stats` prints counters. Measured 2026-10-23 on a 95 MB,
 2,000,000-line JSON log shuffled out of order (`-delay 1h`): output fully sorted, none lost, 4.2 s, 13 MB peak memory.
 
 ## Run it locally

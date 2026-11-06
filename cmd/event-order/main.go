@@ -24,13 +24,15 @@ import (
 )
 
 type config struct {
-	field  string
-	col    int
-	sep    string
-	delay  time.Duration
-	late   string
-	maxBuf int
-	stats  bool
+	field string
+	col   int
+	sep   string
+	delay time.Duration
+	late  string
+	// lateOut, when set, receives every late line (a dead-letter log).
+	lateOut io.Writer
+	maxBuf  int
+	stats   bool
 }
 
 func main() {
@@ -40,10 +42,11 @@ func main() {
 	flag.StringVar(&c.sep, "sep", ",", "column separator for -col; use \"ws\" for runs of whitespace")
 	flag.DurationVar(&c.delay, "delay", 5*time.Second, "how far out of order lines may arrive")
 	flag.StringVar(&c.late, "late", "drop", "late lines: drop, emit (print in place) or stderr")
+	lateFile := flag.String("late-file", "", "append every late line to this file (a dead-letter log), whatever -late is")
 	flag.IntVar(&c.maxBuf, "max-buffered", 0, "cap on lines held in memory; 0 means no cap")
 	flag.BoolVar(&c.stats, "stats", false, "print counters to stderr at the end")
 	flag.Usage = func() {
-		fmt.Fprintln(os.Stderr, "usage: event-order (-field NAME | -col N) [-sep S] [-delay D] [-late drop|emit|stderr] [-max-buffered N] [-stats] [file ...]")
+		fmt.Fprintln(os.Stderr, "usage: event-order (-field NAME | -col N) [-sep S] [-delay D] [-late drop|emit|stderr] [-late-file PATH] [-max-buffered N] [-stats] [file ...]")
 		flag.PrintDefaults()
 	}
 	flag.Parse()
@@ -53,10 +56,20 @@ func main() {
 		fmt.Fprintln(os.Stderr, "event-order:", err)
 		os.Exit(2)
 	}
+	lateOut, closeLate, err := openLateFile(*lateFile)
+	if err != nil {
+		closeInputs()
+		fmt.Fprintln(os.Stderr, "event-order: -late-file:", err)
+		os.Exit(2)
+	}
+	c.lateOut = lateOut
 	out := bufio.NewWriter(os.Stdout)
 	err = run(in, out, os.Stderr, c)
 	if ferr := out.Flush(); err == nil {
 		err = ferr
+	}
+	if cerr := closeLate(); err == nil {
+		err = cerr
 	}
 	closeInputs()
 	if err != nil {
@@ -88,6 +101,26 @@ func openInputs(names []string, stdin io.Reader) (io.Reader, func(), error) {
 		rs = append(rs, f)
 	}
 	return io.MultiReader(rs...), closeAll, nil
+}
+
+// openLateFile opens path for appending and returns a writer for it and a
+// function that flushes and closes it. An empty path returns a nil writer.
+func openLateFile(path string) (io.Writer, func() error, error) {
+	if path == "" {
+		return nil, func() error { return nil }, nil
+	}
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	if err != nil {
+		return nil, nil, err
+	}
+	w := bufio.NewWriter(f)
+	return w, func() error {
+		ferr := w.Flush()
+		if cerr := f.Close(); ferr == nil {
+			ferr = cerr
+		}
+		return ferr
+	}, nil
 }
 
 func run(in io.Reader, out, errw io.Writer, c config) error {
@@ -150,8 +183,15 @@ func newBuffer(errw io.Writer, c config) (*eventorder.Buffer[string], error) {
 		opts = append(opts, eventorder.WithLatePolicy(eventorder.Emit))
 	}
 	b := eventorder.New[string](opts...)
-	if c.late == "stderr" {
-		b.OnLate(func(e eventorder.Event[string]) { _, _ = fmt.Fprintln(errw, e.Value) })
+	if c.late == "stderr" || c.lateOut != nil {
+		b.OnLate(func(e eventorder.Event[string]) {
+			if c.late == "stderr" {
+				_, _ = fmt.Fprintln(errw, e.Value)
+			}
+			if c.lateOut != nil {
+				_, _ = fmt.Fprintln(c.lateOut, e.Value)
+			}
+		})
 	}
 	return b, nil
 }
