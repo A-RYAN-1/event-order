@@ -155,3 +155,64 @@ func TestConfigErrors(t *testing.T) {
 		t.Error("expected error for bad -late")
 	}
 }
+
+func TestLateFileCollectsLateLines(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "late.log")
+	if err := os.WriteFile(path, []byte("earlier\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	w, closeLate, err := openLateFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var o, e strings.Builder
+	c := config{col: 1, sep: "ws", delay: 0, late: "drop", lateOut: w}
+	if err := run(strings.NewReader("10 a\n1 old\n20 c\n2 older\n"), &o, &e, c); err != nil {
+		t.Fatal(err)
+	}
+	if err := closeLate(); err != nil {
+		t.Fatal(err)
+	}
+	if o.String() != "10 a\n20 c\n" {
+		t.Fatalf("ordered output changed: %q", o.String())
+	}
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "earlier\n1 old\n2 older\n" {
+		t.Fatalf("late file %q", got)
+	}
+	// The file is closed: a second close reports it.
+	if err := closeLate(); err == nil {
+		t.Fatal("expected the file to be closed already")
+	}
+}
+
+func TestLateFileWithStderrPolicyWritesBoth(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "late.log")
+	w, closeLate, err := openLateFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var o, e strings.Builder
+	c := config{col: 1, sep: "ws", delay: 0, late: "stderr", lateOut: w}
+	if err := run(strings.NewReader("10 a\n1 old\n"), &o, &e, c); err != nil {
+		t.Fatal(err)
+	}
+	_ = closeLate()
+	got, _ := os.ReadFile(path)
+	if string(got) != "1 old\n" || !strings.Contains(e.String(), "1 old") {
+		t.Fatalf("file %q stderr %q", got, e.String())
+	}
+}
+
+func TestLateFileUnopenablePath(t *testing.T) {
+	if _, _, err := openLateFile(filepath.Join(t.TempDir(), "no-such-dir", "late.log")); err == nil {
+		t.Fatal("expected an error for an unopenable path")
+	}
+	w, closeLate, err := openLateFile("")
+	if err != nil || w != nil || closeLate() != nil {
+		t.Fatal("empty path should be a no-op")
+	}
+}
