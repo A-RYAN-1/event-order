@@ -14,4 +14,4 @@ jobs:
         with:
           go-version: stable
       - name: apply each mutation, expect the tests to fail
-        run: scripts/mutate.sh
+        run: sh scripts/mutate.sh
