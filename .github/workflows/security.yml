@@ -20,7 +20,7 @@ jobs:
         run: govulncheck ./...
       - name: example modules
         run: |
-          for d in examples/kafka examples/mqtt examples/watermill; do
+          for d in examples/kafka examples/mqtt examples/watermill contrib/otel; do
             (cd "$d" && govulncheck ./...)
           done
   coverage:
