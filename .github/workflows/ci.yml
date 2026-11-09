@@ -27,7 +27,7 @@ jobs:
       - name: example modules
         if: matrix.go == 'stable'
         run: |
-          for d in examples/kafka examples/mqtt examples/watermill contrib/otel; do
+          for d in examples/kafka examples/mqtt examples/watermill contrib/otel contrib/watermill; do
             (cd "$d" && go vet ./... && go test -race -count=1 ./...)
           done
       - run: go test -run xxx -fuzz FuzzTracker -fuzztime 15s
@@ -51,7 +51,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        dir: [".", examples/kafka, examples/mqtt, examples/watermill, contrib/otel]
+        dir: [".", examples/kafka, examples/mqtt, examples/watermill, contrib/otel, contrib/watermill]
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7

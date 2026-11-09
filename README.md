@@ -264,6 +264,7 @@ broker. CI also runs the Kafka and MQTT tests against real brokers (Apache Kafka
   yet processed, with an idle drain so the tail of a quiet topic is not stranded.
 - `examples/mqtt` (`eclipse/paho.mqtt.golang`): a subscriber that orders readings with `Pipe` and releases the tail when
   the broker goes quiet.
+- `contrib/watermill`: the same handler as an importable module, with options and tests (see its README).
 - `examples/watermill` (`ThreeDotsLabs/watermill`): a router handler that holds messages and publishes them in event-time
   order, plus an idle drain for the tail of a quiet topic. Limit: Watermill acknowledges a message when the handler
   returns, so a message being held is lost on a crash; where that matters use `Stream` with the broker client, as in the
