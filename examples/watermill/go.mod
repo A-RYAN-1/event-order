@@ -2,10 +2,14 @@ module github.com/A-RYAN-1/event-order/examples/watermill
 
 go 1.23
 
-replace github.com/A-RYAN-1/event-order => ../..
+replace (
+	github.com/A-RYAN-1/event-order => ../..
+	github.com/A-RYAN-1/event-order/contrib/watermill => ../../contrib/watermill
+)
 
 require (
 	github.com/A-RYAN-1/event-order v0.0.0-00010101000000-000000000000
+	github.com/A-RYAN-1/event-order/contrib/watermill v0.0.0-00010101000000-000000000000
 	github.com/ThreeDotsLabs/watermill v1.4.6
 )
 
