@@ -33,7 +33,7 @@ Zero dependencies, bounded memory, one import: no cluster to run.
 </picture>
 </p>
 
-<p align="center"><sub>Status: v0.x, the API may change between minor versions. Last updated: 2026-10-28. Public, no release tagged yet.</sub></p>
+<p align="center"><sub>Status: v0.x, the API may change between minor versions. Last updated: 2026-11-12. Public, v0.2.0 tagged 2026-10-28; v0.3 work merged, untagged.</sub></p>
 
 ---
 
@@ -210,8 +210,11 @@ the late one is in order.
 - **Sequence-number ordering** (`Sequencer`): exact order without a delay, a bounded wait for gaps, `OnGap` and `OnStale` for what never fills.
 - **Aligned watermark** (`Aligned`) over several sources, with idle handling and a lag report.
 - **Consumer glue** (`Stream`): `Ingest`, `Done`, `Commit`, `Skip`, `Revoke`, `Flush`, `AdvanceAll`, `Watermark`, `Stats`.
-- **A command line** that sorts a JSON-lines log or CSV as a stream.
-- **Examples as their own modules** for Kafka, MQTT and Watermill, so the library stays dependency-free.
+- **Run stats from `Pipe`** (`WithStatsFunc`): the final `Stats` (late count, peak, released) once, before the output closes.
+- **A command line** that sorts a JSON-lines log or CSV as a stream; `-late-file PATH` appends every late line to a dead-letter file.
+- **OpenTelemetry metrics** (`contrib/otel`, its own module): `ObserveBuffer` and `ObserveAligned` publish buffered, peak, released, late, watermark lag and per-source lag as observable instruments.
+- **Watermill handler** (`contrib/watermill`, its own module): `NewReorderer`, `Handle` and `Drain` put a router's messages in event-time order.
+- **Examples and adapters as their own modules** (Kafka, MQTT, Watermill, OpenTelemetry), so the root module stays dependency-free.
 
 The package guide on pkg.go.dev (`doc.go`) says how to choose a type and a delay.
 
@@ -390,8 +393,9 @@ renders it from the tag. CI runs on Linux, Windows and macOS, and a release work
 
 ## Status and roadmap
 
-Public since 2026-10-28, v0.2.0 tagged 2026-10-28, last checked 2026-11-03. Aligned, Stream, real-broker tests, the Watermill example and the benchmark
-script are merged; the changelog carries an untagged 0.2.0 entry.
+Public since 2026-10-28, v0.2.0 tagged 2026-10-28, last checked 2026-11-12. Merged since the tag and listed under
+*Unreleased* in the changelog: `Sequencer` (#49), `WithStatsFunc` (#50), the CLI's `-late-file` (#53), the weekly
+mutation run (#54), `contrib/otel` (#56) and `contrib/watermill` (#57).
 
 Known limitations: see [Limits](#limits).
 
