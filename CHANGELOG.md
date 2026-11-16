@@ -6,6 +6,7 @@ All notable changes are listed here, newest first. The format follows [Keep a Ch
 
 ### Added
 
+- `examples/redisstreams`: a Redis Streams consumer-group reader (own module, `redis/go-redis`) that orders and dedups readings and acknowledges only what `Stream` says is processed; local sequence numbers stand in for entry IDs. Unit tests run against a fake source (200 seeded crash and restart runs lose nothing); a tagged integration test runs against Redis 7 in CI, including a restart from the pending list (#23).
 - `contrib/watermill`: the Watermill handler as a reusable module (`NewReorderer`, `Handle`, `Drain`, options `WithLogger`, `WithTimeKey`, `WithBuffer`). Tests over gochannel cover order, a late message under Drop and Emit, the idle drain, the flush at shutdown and a message with no event time; `examples/watermill` now uses it (#22).
 - `contrib/otel`: a separate module that exposes `Stats` and the `Aligned` per-source lag as OpenTelemetry observable gauges and counters (`ObserveBuffer`, `ObserveAligned`); tested with the SDK's manual reader, root `go.mod` unchanged (#25).
 - `scripts/mutate.sh`: applies 13 documented one-line mutations across `buffer.go`, `tracker.go`, `dedup.go` and `aligned.go` one at a time, restores the file after each (also on interrupt) and fails if any mutation survives; a weekly `mutation` workflow runs it (#34).
