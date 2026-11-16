@@ -36,7 +36,7 @@ jobs:
           total=$(go tool cover -func=coverage.out | awk '/^total:/ {gsub("%","",$3); print $3}')
           echo "statement coverage: ${total}%" | tee -a "$GITHUB_STEP_SUMMARY"
           awk -v t="$total" 'BEGIN { exit !(t >= 95) }'
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: coverage
           path: coverage.out
