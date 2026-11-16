@@ -33,7 +33,7 @@ Zero dependencies, bounded memory, one import: no cluster to run.
 </picture>
 </p>
 
-<p align="center"><sub>Status: v0.x, the API may change between minor versions. Last updated: 2026-11-12. Public, v0.2.0 tagged 2026-10-28; v0.3 work merged, untagged.</sub></p>
+<p align="center"><sub>Status: v0.x, the API may change between minor versions. Last updated: 2026-11-16. Public, v0.2.0 tagged 2026-10-28; v0.3 work merged, untagged.</sub></p>
 
 ---
 
@@ -46,7 +46,7 @@ Zero dependencies, bounded memory, one import: no cluster to run.
 - [Features](#features)
 - [Why it exists](#why-it-exists)
 - [How it works](#how-it-works)
-- [Kafka, MQTT and Watermill](#kafka-mqtt-and-watermill)
+- [Kafka, MQTT, Redis Streams and Watermill](#kafka-mqtt-redis-streams-and-watermill)
 - [Why not container/heap or Flink](#why-not-containerheap-or-flink)
 - [Engineering quality and proof](#engineering-quality-and-proof)
 - [Limits](#limits)
@@ -258,15 +258,16 @@ Design decisions, each with its price:
   producer.
 - **Examples in separate modules.** A broker client never enters `go.mod`. The price is a second `go test` to run.
 
-## Kafka, MQTT and Watermill
+## Kafka, MQTT, Redis Streams and Watermill
 
 Each is its own Go module under `examples/`, and each takes a small interface or a channel so its tests run without a
-broker. CI also runs the Kafka and MQTT tests against real brokers (Apache Kafka 3.9 and Eclipse Mosquitto 2 in Docker).
+broker. CI also runs the Kafka, MQTT and Redis Streams tests against real servers (Apache Kafka 3.9, Eclipse Mosquitto 2 and Redis 7 in Docker).
 
 - `examples/kafka` (`segmentio/kafka-go`): per-partition ordering, `Dedup`, and commits only up to the lowest event not
   yet processed, with an idle drain so the tail of a quiet topic is not stranded.
 - `examples/mqtt` (`eclipse/paho.mqtt.golang`): a subscriber that orders readings with `Pipe` and releases the tail when
   the broker goes quiet.
+- `examples/redisstreams` (`redis/go-redis`): a consumer-group reader that orders and dedups readings and acknowledges (`XACK`) only up to the lowest entry not yet processed. Stream entry IDs are not integers, so each entry gets a local sequence number as its offset. After a crash the group's pending list is read first, so nothing held in memory is lost.
 - `contrib/watermill`: the same handler as an importable module, with options and tests (see its README).
 - `examples/watermill` (`ThreeDotsLabs/watermill`): a router handler that holds messages and publishes them in event-time
   order, plus an idle drain for the tail of a quiet topic. Limit: Watermill acknowledges a message when the handler
