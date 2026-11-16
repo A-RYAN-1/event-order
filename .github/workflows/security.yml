@@ -41,7 +41,7 @@ jobs:
           name: coverage
           path: coverage.out
       # Codecov shows the trend and comments on pull requests; the 95 percent floor above stays the gate.
-      - uses: codecov/codecov-action@v5
+      - uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage.out
