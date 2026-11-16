@@ -27,7 +27,7 @@ jobs:
       - name: example modules
         if: matrix.go == 'stable'
         run: |
-          for d in examples/kafka examples/mqtt examples/redisstreams examples/watermill contrib/otel contrib/watermill; do
+          for d in examples/kafka examples/mqtt examples/nats examples/redisstreams examples/watermill contrib/otel contrib/watermill; do
             (cd "$d" && go vet ./... && go test -race -count=1 ./...)
           done
       - run: go test -run xxx -fuzz FuzzTracker -fuzztime 15s
@@ -51,7 +51,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        dir: [".", examples/kafka, examples/mqtt, examples/redisstreams, examples/watermill, contrib/otel, contrib/watermill]
+        dir: [".", examples/kafka, examples/mqtt, examples/nats, examples/redisstreams, examples/watermill, contrib/otel, contrib/watermill]
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
@@ -74,7 +74,8 @@ jobs:
           docker run -d --name kafka -p 9092:9092 apache/kafka:3.9.0
           docker run -d --name mosquitto -p 1883:1883 eclipse-mosquitto:2 mosquitto -c /mosquitto-no-auth.conf
           docker run -d --name redis -p 6379:6379 redis:7
-          timeout 60 sh -c 'until nc -z localhost 9092 && nc -z localhost 1883 && nc -z localhost 6379; do sleep 1; done'
+          docker run -d --name nats -p 4222:4222 nats:2 -js
+          timeout 60 sh -c 'until nc -z localhost 9092 && nc -z localhost 1883 && nc -z localhost 6379 && nc -z localhost 4222; do sleep 1; done'
           sleep 10
       - name: kafka (restart from committed offsets, rebalance)
         working-directory: examples/kafka
@@ -91,6 +92,11 @@ jobs:
         env:
           REDIS_ADDR: localhost:6379
         run: go test -tags integration -count=1 -v -run Integration .
+      - name: nats jetstream (restart after AckWait)
+        working-directory: examples/nats
+        env:
+          NATS_URL: nats://localhost:4222
+        run: go test -tags integration -count=1 -v -run Integration .
       - name: broker logs on failure
         if: failure()
-        run: docker logs kafka | tail -50; docker logs mosquitto | tail -20; docker logs redis | tail -20
+        run: docker logs kafka | tail -50; docker logs mosquitto | tail -20; docker logs redis | tail -20; docker logs nats | tail -20
