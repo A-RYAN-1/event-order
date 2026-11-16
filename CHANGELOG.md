@@ -6,6 +6,7 @@ All notable changes are listed here, newest first. The format follows [Keep a Ch
 
 ### Added
 
+- `examples/nats`: a JetStream pull-consumer reader (own module, `nats-io/nats.go`) that orders by an event-time header, dedups, and acknowledges only what `Stream` says is processed, using the stream sequence as the offset; a message redelivered while held is handled once. Unit tests with a fake source (200 seeded crash and restart runs lose nothing, sequence gaps, redelivery); a tagged integration test against NATS 2 in CI, including a restart after `AckWait` (#24).
 - `examples/redisstreams`: a Redis Streams consumer-group reader (own module, `redis/go-redis`) that orders and dedups readings and acknowledges only what `Stream` says is processed; local sequence numbers stand in for entry IDs. Unit tests run against a fake source (200 seeded crash and restart runs lose nothing); a tagged integration test runs against Redis 7 in CI, including a restart from the pending list (#23).
 - `contrib/watermill`: the Watermill handler as a reusable module (`NewReorderer`, `Handle`, `Drain`, options `WithLogger`, `WithTimeKey`, `WithBuffer`). Tests over gochannel cover order, a late message under Drop and Emit, the idle drain, the flush at shutdown and a message with no event time; `examples/watermill` now uses it (#22).
 - `contrib/otel`: a separate module that exposes `Stats` and the `Aligned` per-source lag as OpenTelemetry observable gauges and counters (`ObserveBuffer`, `ObserveAligned`); tested with the SDK's manual reader, root `go.mod` unchanged (#25).
